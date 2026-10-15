@@ -23,7 +23,7 @@ classifiers = [
 dependencies = ["jinja2>=3.1", "lxml>=4.9"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "python-docx>=1.1", "docxtpl>=0.18"]
+dev = ["pytest>=8", "ruff>=0.6", "python-docx>=1.1", "docxtpl>=0.18", "rich>=13"]
 
 [project.scripts]
 docxtpl-lint = "docxtpl_lint.cli:main"

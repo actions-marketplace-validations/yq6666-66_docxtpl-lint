@@ -21,8 +21,10 @@ _PART_PATTERNS = [
     (re.compile(r"^word/header\d*\.xml$"), "header"),
     (re.compile(r"^word/footer\d*\.xml$"), "footer"),
     (re.compile(r"^word/footnotes\.xml$"), "footnotes"),
-    (re.compile(r"^word/endnotes\.xml$"), "endnotes"),
 ]
+# Only the parts docxtpl 0.20 actually renders (body, headers, footers, footnotes).
+# Endnotes and comments are NOT rendered by docxtpl, so Jinja-looking text there is
+# not template code and linting it would only produce false positives.
 
 
 @dataclass(frozen=True)
@@ -50,7 +52,7 @@ def _part_label(name: str) -> str | None:
 
 
 def _sort_key(name: str) -> tuple[int, int]:
-    order = {"body": 0, "header": 1, "footer": 2, "footnotes": 3, "endnotes": 4}
+    order = {"body": 0, "header": 1, "footer": 2, "footnotes": 3, "endnotes": 4, "comments": 5}
     label = _part_label(name) or ""
     kind = re.sub(r"\d+$", "", label)
     num = re.findall(r"\d+$", label)

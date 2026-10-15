@@ -1,4 +1,16 @@
-"""Tag extraction and lint rules."""
+"""Tag extraction and lint rules.
+
+Pipeline per document part (body, each header/footer, footnotes):
+
+1. :func:`scan_tags` turns paragraph text into a list of :class:`Tag` objects
+   (DTL001/DTL002) and skips ``{% raw %}`` sections.
+2. :func:`check_blocks` checks if/for/... balance with its own stack, so every
+   problem is reported, not just the first one (DTL101/DTL102).
+3. :func:`check_docxtpl_tags` checks docxtpl's ``{%p/tr/tc/r %}`` tags (DTL2xx).
+4. :func:`check_syntax` runs the real Jinja2 parser when the blocks balance (DTL103).
+5. :func:`analyse` walks the Jinja2 AST to find data paths, used for
+   ``--list-vars`` and the ``--data`` checks (DTL3xx).
+"""
 
 from __future__ import annotations
 
@@ -8,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .messages import RULES, render
 from .reader import CellPos, Paragraph, iter_paragraphs
 
 # ---------------------------------------------------------------- data model
@@ -15,19 +28,26 @@ from .reader import CellPos, Paragraph, iter_paragraphs
 
 @dataclass(frozen=True)
 class Location:
+    """Where an issue is. ``paragraph`` counts every paragraph of the part (1-based);
+    ``cells`` is the table path, outermost first; ``column`` is a 1-based character
+    offset inside the paragraph text."""
+
     file: str
     part: str
     paragraph: int
     cells: tuple[CellPos, ...] = ()
     cell_paragraph: int = 0
-    column: int = 0  # 1-based char offset inside paragraph text
+    column: int = 0
 
-    def human(self) -> str:
+    def human(self, lang: str = "en") -> str:
         if self.part == "data":
             return "data"
         s = f"{self.part} ¶{self.paragraph}"
         if self.cells:
-            path = " > ".join(f"表{c.table} 行{c.row} 列{c.col}" for c in self.cells)
+            if lang == "zh":
+                path = " > ".join(f"表{c.table} 行{c.row} 列{c.col}" for c in self.cells)
+            else:
+                path = " > ".join(f"T{c.table} R{c.row} C{c.col}" for c in self.cells)
             s += f" [{path} ¶{self.cell_paragraph}]"
         return s
 
@@ -40,16 +60,26 @@ class Location:
 @dataclass(frozen=True)
 class Issue:
     rule: str
-    severity: str  # "error" | "warning"
-    message: str
     location: Location
     snippet: str = ""
+    params: dict[str, Any] = field(default_factory=dict, compare=False)
 
-    def to_dict(self) -> dict[str, Any]:
+    @property
+    def severity(self) -> str:
+        return RULES[self.rule].severity
+
+    def message_for(self, lang: str = "en") -> str:
+        return render(self.rule, self.params, lang)
+
+    @property
+    def message(self) -> str:
+        return self.message_for("en")
+
+    def to_dict(self, lang: str = "en") -> dict[str, Any]:
         return {
             "rule": self.rule,
             "severity": self.severity,
-            "message": self.message,
+            "message": self.message_for(lang),
             "location": self.location.to_dict(),
             "snippet": self.snippet,
         }
@@ -63,6 +93,7 @@ class Tag:
     raw: str
     para: Paragraph
     col: int
+    spaced: bool = False  # `{% tr ... %}` (invalid, reported by DTL202)
 
 
 @dataclass
@@ -70,61 +101,132 @@ class Report:
     file: str
     issues: list[Issue] = field(default_factory=list)
     variables: list[str] = field(default_factory=list)
-
-
-# ---------------------------------------------------------------- tag scanning
-
-_OPEN = {"{{": ("}}", "expr"), "{%": ("%}", "stmt"), "{#": ("#}", "comment")}
-_PREFIX_RE = re.compile(r"^(tr|tc|p|r) ")
-BLOCKS = {"if", "for", "with", "macro", "call", "filter", "block", "raw", "set_block"}
-JINJA_GLOBALS = {"range", "lipsum", "dict", "cycler", "joiner", "namespace", "loop"}
-MIDDLE = {"elif": {"if"}, "else": {"if", "for"}}
+    disabled: set[str] = field(default_factory=set)
 
 
 def _loc(file: str, p: Paragraph, col: int = 0) -> Location:
     return Location(file, p.part, p.index, p.cells, p.cell_para, col)
 
 
+def _where(tg: Tag) -> str:
+    return _loc("", tg.para, tg.col).human()
+
+
+# ---------------------------------------------------------------- tag scanning
+
+_OPEN = {"{{": ("}}", "expr"), "{%": ("%}", "stmt"), "{#": ("#}", "comment")}
+_PREFIX_RE = re.compile(r"^(tr|tc|p|r) ")
+_SPACED_RE = re.compile(r"^-?\s+(tr|tc|p|r) ")
+_ENDRAW_RE = re.compile(r"\{%-?\s*endraw\s*-?%\}")
+_DISABLE_RE = re.compile(r"^\s*docxtpl-lint:\s*disable\s*=\s*([A-Z0-9_,\s]+?)\s*$")
+
+BLOCKS = {"if", "for", "with", "macro", "call", "filter", "block", "set_block", "autoescape"}
+MIDDLE = {"elif": {"if"}, "else": {"if", "for"}}
+JINJA_GLOBALS = {"range", "lipsum", "dict", "cycler", "joiner", "namespace", "loop", "caller", "varargs", "kwargs"}
+
+
+def _strip_ws_control(s: str) -> str:
+    s = s.strip()
+    if s[:1] in "-+":
+        s = s[1:]
+    if s[-1:] in "-+":
+        s = s[:-1]
+    return s.strip()
+
+
 def scan_tags(file: str, paras: list[Paragraph], issues: list[Issue]) -> list[Tag]:
-    """Extract Jinja tags paragraph by paragraph (DTL001: unterminated tag in paragraph)."""
+    """Extract Jinja tags from the paragraphs of one part.
+
+    A tag that is not closed in its paragraph is continued into the next
+    paragraphs (docxtpl's ``patch_xml`` merges such paragraphs). If it closes
+    later, DTL002 (warning) is reported; if it never closes, DTL001 (error).
+    """
     tags: list[Tag] = []
     opener = re.compile(r"\{[{%#]")
+    carry: tuple[str, Paragraph, int] | None = None  # pending text, start paragraph, start column
+    in_raw = False
     for p in paras:
-        t = p.text
+        prev, carry = carry, None
+        offset = len(prev[0]) if prev else 0
+        t = (prev[0] if prev else "") + p.text
         i = 0
+        if in_raw:
+            m_end = _ENDRAW_RE.search(t)
+            if not m_end:
+                continue
+            in_raw, i = False, m_end.end()
         while True:
             m = opener.search(t, i)
             if not m:
                 break
             start = m.start()
             close, kind = _OPEN[m.group()]
-            end = t.find("%}", m.end()) if kind == "stmt" and close == "%}" else t.find(close, m.end())
+            end = t.find(close, m.end())
+            if prev is not None and start == 0:
+                tag_para, tag_col = prev[1], prev[2]
+            else:
+                tag_para, tag_col = p, start + 1 - offset
             if end < 0:
+                carry = (t[start:], tag_para, tag_col)
+                break
+            if tag_para is not p:
                 issues.append(
                     Issue(
-                        "DTL001",
-                        "error",
-                        f"标签 `{m.group()}` 在本段内没有闭合 `{close}` / "
-                        f"tag `{m.group()}` not closed within the paragraph",
-                        _loc(file, p, start + 1),
-                        t[start : start + 60],
+                        "DTL002",
+                        _loc(file, tag_para, tag_col),
+                        t[start : end + 2][:80],
+                        {"open": m.group(), "end_para": p.index},
                     )
                 )
-                break
             inner = t[m.end() : end]
-            prefix = ""
+            prefix, spaced = "", False
             pm = _PREFIX_RE.match(inner)
-            if not pm and kind != "comment":
-                pm = re.match(r"^-?\s+(tr|tc) ", inner)  # `{% tr for %}`: reported by DTL202
+            if not pm and kind == "stmt":
+                pm = _SPACED_RE.match(inner)
+                spaced = pm is not None
             if pm and (kind != "comment" or pm.group(1) != "r"):
                 prefix = pm.group(1)
                 inner = inner[pm.end() :]
-            tags.append(Tag(kind, prefix, inner.strip(" -+"), t[start : end + 2], p, start + 1))
+            body = _strip_ws_control(inner)
             i = end + 2
+            if kind == "stmt" and not prefix and body == "raw":
+                m_end = _ENDRAW_RE.search(t, i)
+                if m_end:
+                    i = m_end.end()
+                    continue
+                in_raw = True
+                break
+            tags.append(Tag(kind, prefix, body, t[start:i], tag_para, tag_col, spaced))
+    if carry is not None:
+        text, cp, ccol = carry
+        issues.append(Issue("DTL001", _loc(file, cp, ccol), text[:60], {"open": text[:2], "close": _OPEN[text[:2]][0]}))
     return tags
 
 
+def disabled_rules(tags: list[Tag]) -> set[str]:
+    """File-level suppression: ``{# docxtpl-lint: disable=DTL301,DTL302 #}`` anywhere."""
+    out: set[str] = set()
+    for tg in tags:
+        if tg.kind == "comment":
+            m = _DISABLE_RE.match(tg.body)
+            if m:
+                out |= {x.strip() for x in m.group(1).split(",") if x.strip()}
+    return out
+
+
 # ---------------------------------------------------------------- DTL1xx block balance
+
+
+def _keyword(tg: Tag) -> str:
+    words = tg.body.split()
+    if not words:
+        return ""
+    kw = words[0]
+    if kw == "set" and "=" not in tg.body:
+        return "set_block"
+    if kw == "endset":
+        return "endset_block"
+    return kw
 
 
 def check_blocks(file: str, tags: list[Tag]) -> list[Issue]:
@@ -133,75 +235,42 @@ def check_blocks(file: str, tags: list[Tag]) -> list[Issue]:
     for tg in tags:
         if tg.kind != "stmt":
             continue
-        words = tg.body.split()
-        if not words:
-            continue
-        kw = words[0]
-        if kw == "set" and "=" not in tg.body:
-            kw = "set_block"
+        kw = _keyword(tg)
         if kw in BLOCKS:
             stack.append((kw, tg))
         elif kw in MIDDLE:
             if not stack or stack[-1][0] not in MIDDLE[kw]:
-                issues.append(
-                    Issue(
-                        "DTL102",
-                        "error",
-                        f"`{{% {kw} %}}` 不在任何 {'/'.join(sorted(MIDDLE[kw]))} 块内 / "
-                        f"`{kw}` outside of a matching block",
-                        _loc(file, tg.para, tg.col),
-                        tg.raw,
-                    )
-                )
+                issues.append(Issue("DTL102", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw}))
         elif kw.startswith("end"):
-            want = kw[3:]
-            if want == "set":
-                want = "set_block"
+            want = "set_block" if kw == "endset_block" else kw[3:]
             if stack and stack[-1][0] == want:
                 stack.pop()
-                continue
-            if any(k == want for k, _ in stack):
-                # close inner unclosed blocks, report them
+            elif any(k == want for k, _ in stack):
                 while stack and stack[-1][0] != want:
-                    k, open_tag = stack.pop()
-                    issues.append(_unclosed(file, k, open_tag, f"在 `{tg.raw}` 之前 / before `{tg.raw}`"))
+                    issues.append(_unclosed(file, *stack.pop()))
                 stack.pop()
             else:
-                issues.append(
-                    Issue(
-                        "DTL102",
-                        "error",
-                        f"`{tg.raw}` 没有对应的开始标签 / has no matching opening tag",
-                        _loc(file, tg.para, tg.col),
-                        tg.raw,
-                    )
-                )
+                issues.append(Issue("DTL102", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw}))
     for k, open_tag in stack:
-        issues.append(_unclosed(file, k, open_tag, "直到文档末尾 / until end of part"))
+        issues.append(_unclosed(file, k, open_tag))
     return issues
 
 
-def _unclosed(file: str, kw: str, tg: Tag, where: str) -> Issue:
+def _unclosed(file: str, kw: str, tg: Tag) -> Issue:
     name = "set" if kw == "set_block" else kw
-    return Issue(
-        "DTL101",
-        "error",
-        f"`{{% {name} %}}` 未闭合，缺少 `{{% end{name} %}}`（{where}）/ unclosed block",
-        _loc(file, tg.para, tg.col),
-        tg.raw,
-    )
+    return Issue("DTL101", _loc(file, tg.para, tg.col), tg.raw, {"kw": name})
 
 
-# ---------------------------------------------------------------- DTL2xx docxtpl placement
+# ---------------------------------------------------------------- DTL2xx docxtpl tags
 
-_SPACED_PREFIX = re.compile(r"\{[%{]-?\s+(tr|tc)\s")
 _PREFIXED_RAW = re.compile(r"(\{%|\{\{)(tr|tc|p|r) ")
+_SPACED_PREFIX = re.compile(r"\{%-?\s+(tr|tc|p|r)\s")
 
 
 def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> list[Issue]:
     issues: list[Issue] = []
-    # DTL201: prefixed tag body containing % or } is silently mangled by patch_xml ([^}%]*)
     for p in paras:
+        # DTL201: docxtpl's patch_xml matches prefixed tags with `[^}%]*` (#644)
         for m in _PREFIXED_RAW.finditer(p.text):
             close = "%}" if m.group(1) == "{%" else "}}"
             end = p.text.find(close, m.end())
@@ -212,176 +281,197 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
                 issues.append(
                     Issue(
                         "DTL201",
-                        "error",
-                        f"`{m.group(1)}{m.group(2)} …` 表达式里含有 `%` 或 `}}`，docxtpl 的 patch_xml "
-                        "会截断它（见 docxtpl #644）；请先用 {% set %} 算好再引用 / expression "
-                        "contains `%` or `}` which docxtpl cannot handle in prefixed tags",
                         _loc(file, p, m.start() + 1),
                         p.text[m.start() : end + 2],
+                        {"prefix": m.group(1) + m.group(2)},
                     )
                 )
-        # DTL202: "{% tr for ...%}" — space before prefix means docxtpl treats it as plain jinja
+        # DTL202: "{% tr for ... %}"
         for m in _SPACED_PREFIX.finditer(p.text):
+            end = p.text.find("%}", m.start())
             issues.append(
                 Issue(
                     "DTL202",
-                    "error",
-                    f"`{m.group(0).strip()}` 中 `{m.group(1)}` 前不能有空格，应写成 "
-                    f"`{{%{m.group(1)} …`，否则 Jinja 会报 unknown tag / no space allowed before "
-                    f"the `{m.group(1)}` prefix",
                     _loc(file, p, m.start() + 1),
-                    p.text[m.start() : p.text.find("%}", m.start()) + 2] or m.group(0),
+                    p.text[m.start() : end + 2] if end >= 0 else m.group(0),
+                    {"prefix": m.group(1)},
                 )
             )
 
-    # DTL203: tr/tc tags must live inside a table
     for tg in tags:
         if tg.prefix in ("tr", "tc") and not tg.para.cells:
-            issues.append(
-                Issue(
-                    "DTL203",
-                    "error",
-                    f"`{tg.raw}` 使用了 {tg.prefix} 前缀，但不在表格单元格中 / "
-                    f"`{tg.prefix}` tag must be placed inside a table cell",
-                    _loc(file, tg.para, tg.col),
-                    tg.raw,
-                )
-            )
+            issues.append(Issue("DTL203", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw, "prefix": tg.prefix}))
 
-    # DTL204/205/206: pairing of prefixed block tags
     stack: list[tuple[str, Tag]] = []
     for tg in tags:
-        if tg.kind != "stmt" or not tg.body.split():
+        if tg.kind != "stmt":
             continue
-        kw = tg.body.split()[0]
+        kw = _keyword(tg)
         if kw in BLOCKS:
             stack.append((kw, tg))
-        elif kw.startswith("end"):
-            want = kw[3:]
-            idx = next((i for i in range(len(stack) - 1, -1, -1) if stack[i][0] == want), None)
-            if idx is None:
-                continue  # reported by DTL102
-            _, op = stack[idx]
-            del stack[idx:]
-            if op.prefix != tg.prefix:
-                issues.append(
-                    Issue(
-                        "DTL204",
-                        "error",
-                        f"开始标签 `{op.raw}`（{op.para.part} ¶{op.para.index}）与结束标签 "
-                        f"`{tg.raw}` 的前缀不一致（{op.prefix or '无'} vs {tg.prefix or '无'}），"
-                        "docxtpl 只会删除其中一处的行/段落 / prefix mismatch between opening "
-                        "and closing tag",
-                        _loc(file, tg.para, tg.col),
-                        tg.raw,
-                    )
-                )
-            elif op.prefix == "tr" and op.para.cells and tg.para.cells:
-                oc, cc = op.para.cells[-1], tg.para.cells[-1]
-                if (op.para.part, oc.table) != (tg.para.part, cc.table):
-                    issues.append(
-                        Issue(
-                            "DTL205",
-                            "error",
-                            f"`{op.raw}` 在 表{oc.table}，而 `{tg.raw}` 在 表{cc.table}；"
-                            "{%tr %} 循环的开始和结束必须在同一张表 / tr block must open and "
-                            "close in the same table",
-                            _loc(file, tg.para, tg.col),
-                            tg.raw,
-                        )
-                    )
-                elif oc.row == cc.row:
-                    issues.append(
-                        Issue(
-                            "DTL206",
-                            "error",
-                            f"`{op.raw}` 和 `{tg.raw}` 在同一行（表{oc.table} 行{oc.row}）；"
-                            "docxtpl 会用第一个 tr 标签替换整行，第二个会丢失。请把它们放在不同行 / "
-                            "tr open and close tags in the same row",
-                            _loc(file, tg.para, tg.col),
-                            tg.raw,
-                        )
-                    )
+            continue
+        if not kw.startswith("end"):
+            continue
+        want = "set_block" if kw == "endset_block" else kw[3:]
+        idx = next((i for i in range(len(stack) - 1, -1, -1) if stack[i][0] == want), None)
+        if idx is None:
+            continue  # DTL102
+        op = stack[idx][1]
+        del stack[idx:]
+        if op.spaced or tg.spaced:
+            continue  # DTL202 already explains it
+        issues.extend(_pair_issues(file, op, tg))
     return issues
 
 
-# ---------------------------------------------------------------- DTL3xx data contract
+def _pair_issues(file: str, op: Tag, cl: Tag) -> list[Issue]:
+    loc = _loc(file, cl.para, cl.col)
+    base = {"open_raw": op.raw, "close_raw": cl.raw}
+    if op.prefix != cl.prefix:
+        return [
+            Issue(
+                "DTL204",
+                loc,
+                cl.raw,
+                {
+                    **base,
+                    "open_loc": _where(op),
+                    "open_prefix": op.prefix or "-",
+                    "close_prefix": cl.prefix or "-",
+                },
+            )
+        ]
+    if op.prefix not in ("tr", "tc") or not op.para.cells or not cl.para.cells:
+        return []
+    oc, cc = op.para.cells[-1], cl.para.cells[-1]
+    same_table = (op.para.part, len(op.para.cells), oc.table) == (cl.para.part, len(cl.para.cells), cc.table)
+    if op.prefix == "tr":
+        if not same_table:
+            return [Issue("DTL205", loc, cl.raw, {**base, "t1": oc.table, "t2": cc.table})]
+        if oc.row == cc.row:
+            return [Issue("DTL206", loc, cl.raw, {**base, "table": oc.table, "row": oc.row})]
+    elif not same_table or oc.row != cc.row:
+        return [Issue("DTL207", loc, cl.raw, base)]
+    return []
+
+
+# ---------------------------------------------------------------- DTL103 syntax
 
 
 def build_jinja_source(tags: list[Tag]) -> tuple[str, list[Tag]]:
-    """One tag per line so jinja node.lineno maps back to a Tag."""
+    """One tag per line so jinja's ``lineno`` maps back to a :class:`Tag`."""
     lines: list[str] = []
     kept: list[Tag] = []
     for tg in tags:
         if tg.kind == "comment":
             continue
-        if tg.kind == "stmt":
-            lines.append("{% " + tg.body + " %}")
-        else:
-            lines.append("{{ " + tg.body + " }}")
+        lines.append(("{% " + tg.body + " %}") if tg.kind == "stmt" else ("{{ " + tg.body + " }}"))
         kept.append(tg)
     return "\n".join(lines), kept
 
 
+def _env() -> Any:
+    from jinja2 import Environment
+
+    # Same as docxtpl's default: no `do` / `loopcontrols` extensions.
+    return Environment()
+
+
 def check_syntax(file: str, tags: list[Tag]) -> list[Issue]:
-    from jinja2 import Environment, TemplateSyntaxError
+    from jinja2 import TemplateSyntaxError
 
     src, kept = build_jinja_source(tags)
+    if not kept:
+        return []
     try:
-        Environment(extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"]).parse(src)
+        _env().parse(src)
     except TemplateSyntaxError as exc:
-        ln = (exc.lineno or 1) - 1
-        tg = kept[min(max(ln, 0), len(kept) - 1)] if kept else None
-        if tg is None:
-            return []
-        return [
-            Issue(
-                "DTL103",
-                "error",
-                f"Jinja2 语法错误 / syntax error: {exc.message}",
-                _loc(file, tg.para, tg.col),
-                tg.raw,
-            )
-        ]
+        ln = (exc.lineno or 0) - 1
+        if 0 <= ln < len(kept):
+            tg = kept[ln]
+            return [Issue("DTL103", _loc(file, tg.para, tg.col), tg.raw, {"msg": exc.message})]
+        # error at end of input: no reliable tag position, report at part level
+        return [Issue("DTL103", Location(file, kept[0].para.part, 0), "", {"msg": exc.message})]
     return []
 
 
-def collect_paths(tags: list[Tag]) -> list[tuple[str, Tag]]:
-    """Return (dotted path, tag) for every free variable access; loop vars resolved to `x[]`."""
-    from jinja2 import Environment, nodes
+# ---------------------------------------------------------------- AST analysis
 
+
+@dataclass
+class Analysis:
+    uses: list[tuple[str, Tag]] = field(default_factory=list)  # data paths, loop items as `x[]`
+    guarded: set[str] = field(default_factory=set)  # `is defined` / `| default` paths
+    iterables: list[tuple[str, Tag]] = field(default_factory=list)  # `for … in <path>`
+
+
+def _is_guard(n: Any) -> bool:
+    from jinja2 import nodes
+
+    if isinstance(n, nodes.Test):
+        return n.name in ("defined", "undefined", "none")
+    return isinstance(n, nodes.Filter) and n.name in ("default", "d") and n.node is not None
+
+
+def analyse(tags: list[Tag]) -> Analysis:
+    """Find every free data path used by the template.
+
+    Locals (``set``, ``with``, loop targets, macros, imports) are excluded and
+    loop variables are resolved to their iterable: ``{% for i in items %}{{ i.x }}``
+    yields ``items`` and ``items[].x``.
+    """
+    from jinja2 import nodes
+
+    res = Analysis()
     src, kept = build_jinja_source(tags)
+    if not kept:
+        return res
     try:
-        ast = Environment(extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"]).parse(src)
+        ast = _env().parse(src)
     except Exception:
-        return []
-    out: list[tuple[str, Tag]] = []
+        # Broken template: analyse each {{ expression }} on its own (no scoping),
+        # so --list-vars still works on templates with errors.
+        if len(kept) > 1:
+            for tg in kept:
+                if tg.kind == "expr":
+                    sub = analyse([tg])
+                    res.uses += sub.uses
+                    res.guarded |= sub.guarded
+        return res
 
     def path_of(n: nodes.Node, scope: dict[str, str | None]) -> str | None:
         if isinstance(n, nodes.Name):
-            if n.name in scope:
-                return scope[n.name]
-            return n.name
+            return scope.get(n.name, n.name)
         if isinstance(n, nodes.Getattr):
             base = path_of(n.node, scope)
             return f"{base}.{n.attr}" if base else None
-        if isinstance(n, nodes.Getitem) and isinstance(n.arg, nodes.Const) and isinstance(n.arg.value, str):
+        if isinstance(n, nodes.Getitem) and isinstance(n.arg, nodes.Const):
             base = path_of(n.node, scope)
-            return f"{base}.{n.arg.value}" if base else None
+            if not base:
+                return None
+            if isinstance(n.arg.value, str):
+                return f"{base}.{n.arg.value}"
+            if isinstance(n.arg.value, int) and not isinstance(n.arg.value, bool):
+                return f"{base}[]"  # items[0].x -> items[].x
+            return None
         return None
 
     def tag_for(n: nodes.Node) -> Tag:
         return kept[min(max(n.lineno - 1, 0), len(kept) - 1)]
 
     def names(t: nodes.Node) -> list[str]:
-        if isinstance(t, nodes.Name):
-            return [t.name]
-        return [x.name for x in t.find_all(nodes.Name)]
+        return [t.name] if isinstance(t, nodes.Name) else [x.name for x in t.find_all(nodes.Name)]
 
     def visit(n: nodes.Node, scope: dict[str, str | None]) -> None:
+        if _is_guard(n):
+            gp = path_of(n.node, scope)  # type: ignore[attr-defined]
+            if gp:
+                res.guarded.add(gp)
         if isinstance(n, nodes.For):
             visit(n.iter, scope)
             it = path_of(n.iter, scope)
+            if it and isinstance(n.iter, nodes.Name | nodes.Getattr | nodes.Getitem):
+                res.iterables.append((it, tag_for(n)))
             inner = dict(scope)
             inner["loop"] = None
             if isinstance(n.target, nodes.Name):
@@ -397,6 +487,9 @@ def collect_paths(tags: list[Tag]) -> list[tuple[str, Tag]]:
         if isinstance(n, nodes.Assign | nodes.AssignBlock):
             if isinstance(n, nodes.Assign):
                 visit(n.node, scope)
+            else:
+                for c in n.body:
+                    visit(c, scope)
             for nm in names(n.target):
                 scope[nm] = None
             return
@@ -409,12 +502,33 @@ def collect_paths(tags: list[Tag]) -> list[tuple[str, Tag]]:
             for c in n.body:
                 visit(c, inner)
             return
-        if isinstance(n, nodes.Macro | nodes.CallBlock):
+        if isinstance(n, nodes.Macro):
+            scope[n.name] = None
+            inner = dict(scope)
+            for a in n.args:
+                inner[a.name] = None
+            for c in n.body:
+                visit(c, inner)
+            return
+        if isinstance(n, nodes.CallBlock):
+            visit(n.call, scope)
+            inner = dict(scope)
+            for a in n.args:
+                inner[a.name] = None
+            for c in n.body:
+                visit(c, inner)
+            return
+        if isinstance(n, nodes.Import):
+            scope[n.target] = None
+            return
+        if isinstance(n, nodes.FromImport):
+            for nm in n.names:
+                scope[nm[1] if isinstance(nm, tuple) else nm] = None
             return
         if isinstance(n, nodes.Name) and n.ctx == "load" and n.name in scope and scope[n.name] is None:
-            return  # local variable (set / with / loop target tuple / loop)
+            return
         if isinstance(n, nodes.Call) and isinstance(n.node, nodes.Getattr):
-            # method call such as `m.items()` / `name.upper()`: only the receiver is data
+            # method call such as `m.items()`: only the receiver is data
             visit(n.node.node, scope)
             for c in [*n.args, *n.kwargs]:
                 visit(c, scope)
@@ -424,7 +538,7 @@ def collect_paths(tags: list[Tag]) -> list[tuple[str, Tag]]:
         if isinstance(n, nodes.Getattr | nodes.Getitem | nodes.Name) and getattr(n, "ctx", "load") == "load":
             p = path_of(n, scope)
             if p is not None:
-                out.append((p, tag_for(n)))
+                res.uses.append((p, tag_for(n)))
                 if isinstance(n, nodes.Getitem):
                     visit(n.arg, scope)
                 return
@@ -432,88 +546,97 @@ def collect_paths(tags: list[Tag]) -> list[tuple[str, Tag]]:
             visit(c, scope)
 
     visit(ast, {})
-    return out
+    return res
 
 
-def _lookup(data: Any, path: str) -> bool:
+# ---------------------------------------------------------------- DTL3xx data contract
+
+
+def _resolve(data: Any, path: str) -> list[Any] | None:
+    """Values at ``path`` (``[]`` = every list item). ``None`` if provably absent;
+    an empty list if absence cannot be proven (e.g. an empty list on the way)."""
     cur: list[Any] = [data]
     for part in path.split("."):
         is_list = part.endswith("[]")
         key = part[:-2] if is_list else part
-        nxt: list[Any] = []
-        for c in cur:
-            if isinstance(c, dict) and key in c:
-                nxt.append(c[key])
+        nxt = [c[key] for c in cur if isinstance(c, dict) and key in c]
         if not nxt:
-            return False
+            return None if cur else []
         if is_list:
-            items = [x for v in nxt if isinstance(v, list) for x in v]
-            if not items:
-                return True  # empty list: cannot prove absence
-            nxt = items
+            nxt = [x for v in nxt if isinstance(v, list) for x in v] + [v for v in nxt if isinstance(v, dict)]
+            if not nxt:
+                return []
         cur = nxt
-    return True
+    return cur
 
 
-def _data_paths(data: Any, prefix: str = "") -> set[str]:
-    out: set[str] = set()
-    if isinstance(data, dict):
-        for k, v in data.items():
-            p = f"{prefix}.{k}" if prefix else k
-            out.add(p)
-            out |= _data_paths(v, p)
-    elif isinstance(data, list):
-        for x in data:
-            out |= _data_paths(x, prefix + "[]")
-    return out
+def _type_name(v: Any) -> str:
+    return {str: "string", int: "number", float: "number", bool: "boolean", type(None): "null"}.get(
+        type(v), type(v).__name__
+    )
 
 
-def check_data(file: str, tags: list[Tag], data: Any) -> list[Issue]:
+def check_data(file: str, an: Analysis, contexts: list[Any], report_unused: bool = False) -> list[Issue]:
+    """DTL301/303 (and DTL302 if ``report_unused``) against one or more sample contexts.
+
+    With several contexts (e.g. one shared JSON per customer type) a path is only
+    reported as missing if it is missing from *all* of them.
+    """
     issues: list[Issue] = []
-    used = collect_paths(tags)
     seen: set[str] = set()
-    used_set: set[str] = set()
-    for path, tg in used:
-        segs = path.split(".")
-        for i in range(1, len(segs) + 1):
-            used_set.add(".".join(segs[:i]))
-        if path in seen:
+    roots: set[str] = set()
+    for path, tg in an.uses:
+        roots.add(path.split(".")[0].removesuffix("[]"))
+        if path in seen or any(path == g or path.startswith(g + ".") for g in an.guarded):
             continue
         seen.add(path)
-        if not _lookup(data, path):
+        if all(_resolve(d, path) is None for d in contexts):
+            issues.append(Issue("DTL301", _loc(file, tg.para, tg.col), tg.raw, {"path": path.replace("[]", "[*]")}))
+    for path, tg in an.iterables:
+        if path in an.guarded:
+            continue
+        vals = [v for d in contexts for v in (_resolve(d, path) or [])]
+        # strings are iterable (per character) in Jinja, so only flag numbers/booleans/null
+        bad = [v for v in vals if v is None or isinstance(v, bool | int | float)]
+        if bad:
             issues.append(
                 Issue(
-                    "DTL301",
-                    "error",
-                    f"变量 `{path.replace('[]', '[*]')}` 在数据文件中不存在 / variable not found in data",
+                    "DTL303",
                     _loc(file, tg.para, tg.col),
                     tg.raw,
+                    {"path": path.replace("[]", "[*]"), "type": _type_name(bad[0])},
                 )
             )
-    roots = {p.split(".")[0] for p in used_set}
-    if isinstance(data, dict):
-        for key in data:
+    if report_unused:
+        keys = dict.fromkeys(k for d in contexts if isinstance(d, dict) for k in d)
+        for key in keys:
             if key not in roots:
-                issues.append(
-                    Issue(
-                        "DTL302",
-                        "warning",
-                        f"数据字段 `{key}` 在模板中从未使用 / data key never used by template",
-                        Location(file, "data", 0),
-                    )
-                )
+                issues.append(Issue("DTL302", Location(file, "data", 0), "", {"key": key}))
     return issues
 
 
 # ---------------------------------------------------------------- entry
 
 
-def lint_path(path: str | Path, data: Any = None) -> Report:
+def lint_path(
+    path: str | Path,
+    data: Any = None,
+    *,
+    contexts: list[Any] | None = None,
+    allow_cross_paragraph: bool = False,
+    report_unused_data: bool = False,
+) -> Report:
+    """Lint one ``.docx`` template.
+
+    ``data`` is an optional sample context (parsed JSON); ``contexts`` allows
+    several. Either enables the DTL3xx data checks.
+    """
     file = str(path)
     paras = list(iter_paragraphs(path))
     issues: list[Issue] = []
     tags: list[Tag] = []
-    for part in dict.fromkeys(p.part for p in paras):
+    parts = list(dict.fromkeys(p.part for p in paras))
+    for part in parts:
         part_paras = [p for p in paras if p.part == part]
         part_tags = scan_tags(file, part_paras, issues)
         tags.extend(part_tags)
@@ -522,12 +645,17 @@ def lint_path(path: str | Path, data: Any = None) -> Report:
         issues.extend(check_docxtpl_tags(file, part_tags, part_paras))
         if not block:
             issues.extend(check_syntax(file, part_tags))
-    order = {p: i for i, p in enumerate(dict.fromkeys(p.part for p in paras))}
+    order = {p: i for i, p in enumerate(parts)}
     issues.sort(key=lambda i: (order.get(i.location.part, 99), i.location.paragraph, i.location.column))
-    rep = Report(file, issues)
-    rep.variables = sorted({p for p, _ in collect_paths(tags)})
-    if data is not None:
-        rep.issues.extend(check_data(file, tags, data))
+    an = analyse(tags)
+    ctxs = list(contexts or []) + ([data] if data is not None else [])
+    if ctxs:
+        issues.extend(check_data(file, an, ctxs, report_unused_data))
+    disabled = disabled_rules(tags)
+    if allow_cross_paragraph:
+        disabled.add("DTL002")
+    rep = Report(file, [i for i in issues if i.rule not in disabled], disabled=disabled)
+    rep.variables = sorted({p for p, _ in an.uses})
     return rep
 
 
