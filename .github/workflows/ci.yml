@@ -2,12 +2,19 @@ name: CI
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "0 3 * * 1"  # weekly: catch docxtpl upstream changes
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,8 +23,36 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check . && ruff format --check .
       - run: pytest -q
-      - name: Self-check example templates (dogfood)
-        run: |
-          python tests/make_fixtures.py examples
-          docxtpl-lint examples/clean.docx
-          ! docxtpl-lint examples/issue378_unclosed.docx
+  docxtpl-upstream:
+    # Ground-truth tests against the newest docxtpl release and upstream master.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        docxtpl: ["docxtpl", "git+https://github.com/elapouya/python-docx-template.git"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" && pip install --upgrade "${{ matrix.docxtpl }}"
+      - run: pytest -q tests/test_docxtpl_behaviour.py
+  action:
+    # Dogfood the composite action on the bundled examples (path with a space included).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdir -p "tmp dir" && cp examples/clean.docx "tmp dir/clean copy.docx"
+      - uses: ./
+        with:
+          files: |
+            examples/clean.docx
+            tmp dir/*.docx
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine && python -m build && twine check dist/*

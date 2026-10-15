@@ -1,0 +1,3 @@
+- [ ] `pytest` and `ruff check . && ruff format --check .` pass
+- [ ] New/changed docxtpl rule has a case in `tests/rule_cases.py` (rendered with real docxtpl)
+- [ ] `CHANGELOG.md` updated (Unreleased)

@@ -1,22 +1,46 @@
 name: docxtpl-lint
-description: Lint docxtpl (python-docx-template) Word templates and fail the build on errors
-branding: { icon: file-text, color: blue }
+description: Lint docxtpl (python-docx-template) Word templates and annotate problems in the run / PR
+branding:
+  icon: file-text
+  color: blue
 inputs:
   files:
-    description: Space-separated .docx paths or globs
+    description: Newline-separated .docx paths or globs (`**` supported). Paths may contain spaces.
     required: true
   args:
-    description: Extra CLI args, e.g. "--data sample.json --warnings-as-errors"
+    description: Extra CLI arguments, e.g. "--data sample.json --warnings-as-errors"
     required: false
     default: ""
+  python-version:
+    description: Python version used to run the linter
+    required: false
+    default: "3.12"
 runs:
   using: composite
   steps:
     - uses: actions/setup-python@v5
-      with: { python-version: "3.12" }
+      with:
+        python-version: ${{ inputs.python-version }}
     - shell: bash
-      run: pip install "${{ github.action_path }}"
+      run: python -m pip install --quiet "${{ github.action_path }}"
     - shell: bash
+      env:
+        FILES: ${{ inputs.files }}
+        ARGS: ${{ inputs.args }}
       run: |
         shopt -s globstar nullglob
-        docxtpl-lint ${{ inputs.args }} ${{ inputs.files }}
+        files=()
+        while IFS= read -r pattern; do
+          [ -z "$pattern" ] && continue
+          IFS=$'\n'
+          # unquoted on purpose: expand the glob, split only on newlines
+          matches=( $pattern )
+          unset IFS
+          files+=( "${matches[@]}" )
+        done <<< "$FILES"
+        if [ ${#files[@]} -eq 0 ]; then
+          echo "::error::docxtpl-lint: no files matched"
+          exit 2
+        fi
+        read -r -a extra <<< "$ARGS"
+        docxtpl-lint --format github "${extra[@]}" "${files[@]}"

@@ -1,0 +1,31 @@
+name: Bug report / false positive
+description: docxtpl-lint reported something wrong, missed a problem, or crashed
+labels: [bug]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [False positive, Missed problem, Crash, Other]
+    validations: { required: true }
+  - type: textarea
+    id: output
+    attributes:
+      label: docxtpl-lint output
+      description: Paste the command and its output (`--no-color`).
+      render: text
+    validations: { required: true }
+  - type: textarea
+    id: docxtpl
+    attributes:
+      label: What docxtpl does with this template
+      description: Does `DocxTemplate(...).render(context)` raise, or is the output wrong? Paste the error if any.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: docxtpl-lint 0.1.0, docxtpl 0.20.2, Python 3.12
+    validations: { required: true }
+  - type: markdown
+    attributes:
+      value: Please attach a **minimal .docx** that reproduces the problem (remove confidential content). Without one we usually cannot confirm the behaviour.
