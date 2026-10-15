@@ -1,0 +1,7 @@
+- id: docxtpl-lint
+  name: docxtpl-lint
+  description: Lint docxtpl / Jinja2 Word templates
+  entry: docxtpl-lint
+  language: python
+  files: \.docx$
+  exclude: (^|/)~\$

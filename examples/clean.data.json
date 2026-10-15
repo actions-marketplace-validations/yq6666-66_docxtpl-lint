@@ -1,0 +1,12 @@
+{
+  "customer": {
+    "name": "ACME"
+  },
+  "items": [
+    {
+      "name": "Pen"
+    }
+  ],
+  "company": "Foo Ltd",
+  "unused_key": 1
+}
