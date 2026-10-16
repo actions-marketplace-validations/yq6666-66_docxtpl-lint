@@ -849,3 +849,106 @@ Facts verified with docxtpl 0.20.2: verify on docxtpl's 40 test templates: 37 re
 
 ### v1.0 委托给 DeepSeek 的任务
 - README.zh.md：DeepSeek 翻译，我核对了链接和代码块，并把"演练场"统一改为"在线试用页（Playground）"
+
+
+## 第 10 轮：对抗用例、UX 评审、评估对比
+
+- 对抗用例的提示词包含 README、rules.md 和 CLI 帮助（约 40 KB，这里省略）。DeepSeek 输出的用例原样保存在 `docs/eval/adversarial_cases.json`；v1.0.0 上的运行结果见 `docs/eval/adversarial_results_v1.0.0.json`（65/86 一致）。
+- DeepSeek 写的评估原文见 `docs/eval/deepseek-eval.md`。
+
+### UX 评审（DeepSeek 原文）
+
+# Top 10 UX problems
+
+1. **`--data` help text is a riddle.** "Repeatable: a path is only reported missing if it is missing from every file" — every *file*? You mean every `--data` file. Fix: "Repeatable; a path is reported only if absent from all given contexts."
+
+2. **`diff` output is unreadable and wrong-looking.** `BREAKING + client (renamed from customer?)` then `ok + client.name` — the `+`/`-` glyphs collide with diff semantics, and "renamed from" is a guess presented as fact. Fix: use `~ renamed: customer → client (guess)`, `+ added`, `- removed`, and mark breaking with a `!` column.
+
+3. **GitHub format double-escapes `%`.** `{%25 if %25}` is URL-encoding leaking into a human-readable annotation title. Fix: don't percent-encode in `title`/`message`; only encode the `file=` path.
+
+4. **Text output puts the caret *below* the offending line but the snippet order is confusing.** In the DTL206 block, `¶4` appears after the error line and `¶5` is marked `>` — the reader has to reverse-engineer that `>` = current. Fix: print `¶4`, `¶5 (here)`, `¶6` in order, or prefix with `→`.
+
+5. **`fix` output is a diff against a `.docx`.** Nobody can apply `--- a/foo.docx` with `patch`. Fix: say "suggested edits (not a patchable diff)" or emit a `docxtpl-lint fix --apply` that rewrites the XML.
+
+6. **`infer` JSON is noisy.** `x-docxtpl-templates` is repeated on every node including `items` and `items[*]`. Fix: emit it once at the root as `x-docxtpl-templates: [...]`, or only on leaves that differ.
+
+7. **Playground copy over-promises then hedges.** "Lint a docxtpl Word template in your browser" followed by a footer admitting `--data`, `--schema`, and `verify` are CLI-only. Fix: put the limitation in the drop-zone subtitle, not the footer.
+
+8. **Playground has no error path.** If Pyodide fails to load (offline, CSP, 10 MB timeout), the user sees "Loading Python…" forever. Fix: a timeout with "Couldn't load the linter — [use the CLI]".
+
+9. **README buries the install.** "Not on PyPI yet" is a paragraph; the actual `pip install` is a git URL with a tag. Fix: a one-line `pip install` at the top, and a note that PyPI is pending.
+
+10. **`--context` default is invisible.** "default: 1 in a terminal, 0 otherwise" — a CI user wondering why their logs lack context has to read the help. Fix: print `(context: 0, non-tty)` in the summary line.
+
+# 5 things that are good
+
+1. **Locations are excellent.** `body ¶5 [T1 R2 C2 ¶1]` plus the printed tag text is genuinely better than docxtpl's stack trace.
+2. **The "docxtpl does X" column in the rules table** teaches the *why*, not just the rule ID.
+3. **`--allow-cross-paragraph` is named after the user's intent**, not the rule (DTL002).
+4. **The benchmark table** (false positives 7 → 0) is honest and specific.
+5. **`fix` never writes the `.docx`** and says so — the right default for a linter.
+
+
+### 对比两份评估（提示词）
+
+````
+Round 10: we compare your evaluation (deepseek-eval.md) with mine (self-eval.md). I ran experiments with real docxtpl 0.20.2 on disputed verdicts:
+E1 nested_loops_nested_tables: your case puts `{%tr for b%}{{ b }}{%tr endfor %}` in ONE row -> docxtpl raises "unknown tag 'endfor'" — DTL206 (tr open/close same row) is the correct diagnosis, not a misdiagnosis. Moving the inner loop to its own rows renders [['p',''],['q','']].
+E2 dtl209_tr_row_neighbour: rendering removes the whole row incl. "extra" (output table empty) — silent loss, so a diagnostic IS warranted; your verdict "no diagnostic warranted" contradicts your own rationale. I will extend DTL209 to other cells of a {%tr%} row.
+E3 dtl209_tc_cell_neighbour: {%tc if%} in R1, {%tc endif%} in R2 -> output [['y'],['z']]: table shape corrupted, "extra" lost — DTL207 is correct, not spurious.
+E4 comment next to {%p%}: renders fine, nothing lost -> DTL209 false positive confirmed; will strip comments.
+E5 '}}' inside a string literal: docxtpl renders 'a }} b' -> our DTL103 false positive confirmed; scanner must skip quoted strings.
+Also: (a) schema_loop_over_number had --data, not --schema, so DTL303 is right; (b) infer listing parent paths (`items`, `user`) is by design (they are the array/object nodes of the contract); (c) GitHub `%25` is mandated by the workflow-command escaping spec (% -> %25), not a bug; (d) `fix --apply` rejected (docx run splitting).
+My bugs: BOM in --data JSON rejected (Windows Notepad); verify/infer/diff traceback on non-docx (exit 1 not 2); a missing `}` swallows following paragraphs and only yields a DTL002 warning, hiding the endfro typo; unclosed {% raw %} not reported; DTL209 noise next to DTL201/203.
+Reply: AGREE/DISAGREE per item E1-E5, a-d with one-line reason; then propose a prioritized v1.1 plan (P0/P1/P2, max 12 items) from both evaluations, including which of your UX items to adopt. Max 500 words.
+
+````
+
+### DeepSeek 回复（原文）
+
+**E1 — AGREE.** `{%tr for%}`/`{%tr endfor%}` in one row is genuinely invalid; DTL206 is the right code, my "misdiagnosis" call was wrong.
+
+**E2 — AGREE.** Silent row loss is exactly what a diagnostic is for; my "no diagnostic" verdict contradicted my own rationale. Extending DTL209 to `{%tr%}` neighbours is correct.
+
+**E3 — AGREE.** `{%tc if%}`/`{%tc endif%}` split across rows corrupts shape and drops "extra"; DTL207 is warranted, not spurious.
+
+**E4 — AGREE.** Comments beside `{%p%}` render cleanly; DTL209 there is a false positive. Strip comments before neighbour analysis.
+
+**E5 — AGREE.** `'a }} b'` renders fine; DTL103 must skip quoted string literals. Scanner fix required.
+
+**a — AGREE.** `--data` (not `--schema`) means DTL303 is correct; my flag confusion.
+
+**b — AGREE.** Listing `items`/`user` parent paths is contract-correct (they're the array/object nodes).
+
+**c — AGREE.** `%25` is mandated by GitHub's workflow-command escaping; not a bug.
+
+**d — AGREE.** Rejecting `fix --apply` for run-splitting is the safe call.
+
+---
+
+**v1.1 plan (prioritized)**
+
+**P0 — correctness / data loss**
+1. Fix DTL206: detect `{%tr%}` open+close in same row (E1).
+2. Extend DTL209 to `{%tr%}`/`{%tc%}` row/cell neighbours; suppress when DTL201/203 already fire (E2, E3, your noise bug).
+3. Strip comments before neighbour analysis (E4).
+4. Scanner: skip quoted string literals for `}}`/`{%` (E5).
+5. Unclosed `{% raw %}` → hard error, not silent (your bug).
+6. Missing `}` swallowing paragraphs: escalate DTL002 to error and surface the `endfro` typo (your bug).
+
+**P1 — robustness / UX**
+7. BOM-tolerant `--data` JSON parsing (your Windows bug).
+8. `verify`/`infer`/`diff` on non-docx → exit 2 with clean message, no traceback (your bug).
+9. Adopt my UX item: `--json` output for `verify` (machine-readable diagnostics).
+10. Adopt my UX item: `--explain CODE` to print rationale/fix per diagnostic.
+
+**P2 — polish**
+11. Adopt my UX item: `--quiet`/`--verbose` verbosity flags.
+12. Adopt my UX item: colorized, file:line-prefixed diagnostics (respect `NO_COLOR`).
+
+**Not adopting:** any change to `%25` escaping (c), parent-path listing (b), or `fix --apply` run-splitting (d) — all correct as-is.
+
+Net: your E1–E5 and a–d all stand; my eval had three wrong verdicts (E1, E2, E3) and two flag/UX misreads. v1.1 leads with the six P0 correctness fixes, then robustness, then my UX additions.
+
+
+说明：它计划里的第 1 条（DTL206）早已实现；第 9 条（verify 的 JSON 输出）和第 12 条（彩色输出）也已经有了，所以这三条不计入 v1.1。

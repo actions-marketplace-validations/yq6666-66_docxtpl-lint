@@ -149,6 +149,34 @@ def _strip_ws_control(s: str) -> str:
     return s.strip()
 
 
+_QUOTES = {"'": "'", '"': '"', "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'}
+
+
+def _find_close(t: str, pos: int, close: str, kind: str) -> tuple[int, int]:
+    """``(end, nested)``: index of ``close`` after ``pos``, skipping string literals as Jinja's
+    lexer does; ``nested`` is the index of a new ``{{``/``{%`` met first (the tag was never
+    closed), else -1. Comments are not tokenised by Jinja: plain search."""
+    if kind == "comment":
+        return t.find(close, pos), -1
+    q = ""
+    i = pos
+    while i < len(t):
+        c = t[i]
+        if q:
+            if _QUOTES.get(c) == q:
+                q = ""
+        elif c in _QUOTES:
+            q = _QUOTES[c]
+        elif t.startswith(close, i):
+            return i, -1
+        elif t.startswith("{{", i) or t.startswith("{%", i):
+            return -1, i
+        i += 1
+    if q:  # unbalanced quote (e.g. an apostrophe): fall back to the plain search
+        return t.find(close, pos), -1
+    return -1, -1
+
+
 def scan_tags(file: str, paras: list[Paragraph], issues: list[Issue]) -> list[Tag]:
     """Extract Jinja tags from the paragraphs of one part.
 
@@ -160,6 +188,7 @@ def scan_tags(file: str, paras: list[Paragraph], issues: list[Issue]) -> list[Ta
     opener = re.compile(r"\{[{%#]")
     carry: tuple[str, Paragraph, int] | None = None  # pending text, start paragraph, start column
     in_raw = False
+    raw_tag: tuple[Paragraph, int, str] | None = None
     for p in paras:
         prev, carry = carry, None
         offset = len(prev[0]) if prev else 0
@@ -176,11 +205,24 @@ def scan_tags(file: str, paras: list[Paragraph], issues: list[Issue]) -> list[Ta
                 break
             start = m.start()
             close, kind = _OPEN[m.group()]
-            end = t.find(close, m.end())
+            end, nested = _find_close(t, m.end(), close, kind)
             if prev is not None and start == 0:
                 tag_para, tag_col = prev[1], prev[2]
             else:
                 tag_para, tag_col = p, start + 1 - offset
+            if nested >= 0:
+                # `{{ x }` followed by another tag: this one is never closed. Report it and
+                # keep scanning from the next tag instead of swallowing the document.
+                issues.append(
+                    Issue(
+                        "DTL001",
+                        _loc(file, tag_para, tag_col),
+                        t[start:nested][:60],
+                        {"open": m.group(), "close": close},
+                    )
+                )
+                i = nested
+                continue
             if end < 0:
                 carry = (t[start:], tag_para, tag_col)
                 break
@@ -212,8 +254,11 @@ def scan_tags(file: str, paras: list[Paragraph], issues: list[Issue]) -> list[Ta
                     i = m_end.end()
                     continue
                 in_raw = True
+                raw_tag = (tag_para, tag_col, t[start:i])
                 break
             tags.append(Tag(kind, prefix, body, t[start:i], tag_para, tag_col, spaced))
+    if in_raw and raw_tag is not None:
+        issues.append(Issue("DTL101", _loc(file, raw_tag[0], raw_tag[1]), raw_tag[2], {"kw": "raw"}))
     if carry is not None:
         text, cp, ccol = carry
         issues.append(Issue("DTL001", _loc(file, cp, ccol), text[:60], {"open": text[:2], "close": _OPEN[text[:2]][0]}))
@@ -317,15 +362,12 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
 
     for tg in tags:
         # DTL209: patch_xml replaces the whole paragraph/row/cell with the bare tag
-        if tg.prefix in ("p", "tr", "tc") and (tg.kind == "stmt" or tg.prefix == "p") and tg.raw in tg.para.text:
-            rest = tg.para.text.replace(tg.raw, "", 1).strip()
-            if rest:
-                unit = {"p": "paragraph", "tr": "table row", "tc": "table cell"}[tg.prefix]
-                issues.append(
-                    Issue(
-                        "DTL209", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw, "rest": rest[:40], "unit": unit}
-                    )
-                )
+        lost = _dtl209_lost(tg, paras)
+        if lost:
+            unit = {"p": "paragraph", "tr": "table row", "tc": "table cell"}[tg.prefix]
+            issues.append(
+                Issue("DTL209", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw, "rest": lost[:40], "unit": unit})
+            )
         if tg.kind == "stmt" and _keyword(tg) in CELL_TAGS and not tg.para.cells:
             issues.append(Issue("DTL208", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw}))
         if tg.prefix in ("tr", "tc") and not tg.para.cells:
@@ -363,6 +405,42 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
     ]
 
 
+_COMMENT_RE = re.compile(r"\{#.*?#\}", re.S)
+
+
+def _dtl209_lost(tg: Tag, paras: list[Paragraph]) -> str:
+    """Visible text that docxtpl drops because ``tg`` replaces its paragraph/row/cell."""
+    if tg.prefix not in ("p", "tr", "tc") or not (tg.kind == "stmt" or tg.prefix == "p"):
+        return ""
+    if tg.spaced or "%" in tg.body or "}" in tg.body:
+        return ""  # DTL202 / DTL201: docxtpl raises anyway
+    if tg.prefix in ("tr", "tc") and not tg.para.cells:
+        return ""  # DTL203
+    if tg.raw not in tg.para.text:
+        return ""
+
+    def visible(text: str) -> str:
+        return _COMMENT_RE.sub("", text).strip()
+
+    rest = visible(tg.para.text.replace(tg.raw, "", 1))
+    if "{%" + tg.prefix + " " in rest:
+        return ""  # two {%p %} tags in one paragraph: DTL210 / DTL206 (docxtpl raises)
+    if rest or tg.prefix == "p":
+        return rest
+    me = tg.para.cells[-1]
+    depth = len(tg.para.cells)
+    for q in paras:
+        if q is tg.para or q.part != tg.para.part or len(q.cells) < depth:
+            continue
+        if q.cells[: depth - 1] != tg.para.cells[: depth - 1]:
+            continue
+        c = q.cells[depth - 1]
+        same = (c.table, c.row) == (me.table, me.row) and (tg.prefix == "tr" or c.col == me.col)
+        if same and visible(q.text):
+            return visible(q.text)
+    return ""
+
+
 def _pair_issues(file: str, op: Tag, cl: Tag) -> list[Issue]:
     loc = _loc(file, cl.para, cl.col)
     base = {"open_raw": op.raw, "close_raw": cl.raw}
@@ -382,6 +460,8 @@ def _pair_issues(file: str, op: Tag, cl: Tag) -> list[Issue]:
                 },
             )
         ]
+    if op.prefix == "p" and op.para is cl.para:
+        return [Issue("DTL210", loc, cl.raw, base)]
     if op.prefix not in ("tr", "tc") or not op.para.cells or not cl.para.cells:
         return []
     oc, cc = op.para.cells[-1], cl.para.cells[-1]
@@ -782,4 +862,5 @@ def template_tags(path: str | Path) -> tuple[list[Paragraph], list[Tag]]:
 
 
 def load_data(path: str | Path) -> Any:
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    # utf-8-sig: Windows Notepad / PowerShell 5 write a BOM
+    return json.loads(Path(path).read_text(encoding="utf-8-sig"))

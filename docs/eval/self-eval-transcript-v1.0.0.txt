@@ -1,0 +1,387 @@
+
+$ docxtpl-lint invoice.docx --no-config
+✔ 1 file(s) clean
+[exit 0]
+
+$ docxtpl-lint invoice.docx --data data.json --no-config
+✔ 1 file(s) clean
+[exit 0]
+
+$ docxtpl-lint invoice.docx --data data_bom_crlf.json --no-config
+docxtpl-lint: cannot read --data: Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)
+[exit 2]
+
+$ docxtpl-lint 合同 模板.docx --no-config --lang zh
+✔ 1 个文件全部通过
+[exit 0]
+
+$ docxtpl-lint broken.docx --no-config --context 1
+broken.docx:body ¶2 [T1 R1 C1 ¶1]:1: error DTL101 `{% for %}` is never closed: missing `{% endfor %}`
+    {% tr for i in items %}
+        ¶1             | Dear {{ customer.name }},
+      > ¶2   T1R1C1    | {% tr for i in items %}
+        ¶3   T1R1C2    | 
+broken.docx:body ¶2 [T1 R1 C1 ¶1]:1: error DTL202 write `{%tr …` without a space; `{% tr …` is an unknown Jinja tag
+    {% tr for i in items %}
+        ¶1             | Dear {{ customer.name }},
+      > ¶2   T1R1C1    | {% tr for i in items %}
+        ¶3   T1R1C2    | 
+broken.docx:body ¶5 [T1 R2 C2 ¶1]:1: warning DTL002 `{{` is only closed in paragraph ¶8; docxtpl merges these paragraphs and their formatting is lost (use --allow-cross-paragraph if intended)
+    {{ i.price }{%tr endfro %}Total: {{ total }}
+        ¶4   T1R2C1    | {{ i.name }}
+      > ¶5   T1R2C2    | {{ i.price }
+        ¶6   T1R3C1    | {%tr endfro %}
+broken.docx:body ¶8:20: error DTL209 `{%p if vat %}` makes docxtpl replace the whole paragraph with the tag, so `Total: {{ total }}` next to it disappears from the output without any error. Move that content to its own paragraph
+    {%p if vat %}
+        ¶7   T1R3C2    | 
+      > ¶8             | Total: {{ total }} {%p if vat %}
+        ¶9             | {%p endif %}
+broken.docx:footer1 ¶1:1: error DTL101 `{% if %}` is never closed: missing `{% endif %}`
+    {% if show_page %}
+      > ¶1             | {% if show_page %}Page
+
+✖ 4 error(s), 1 warning(s) in 1 file(s)
+[exit 1]
+
+$ docxtpl-lint broken.docx --no-config --format github
+::error file=broken.docx,title=DTL101 body ¶2 [T1 R1 C1 ¶1]::body ¶2 [T1 R1 C1 ¶1]: `{%25 for %25}` is never closed: missing `{%25 endfor %25}`
+::error file=broken.docx,title=DTL202 body ¶2 [T1 R1 C1 ¶1]::body ¶2 [T1 R1 C1 ¶1]: write `{%25tr …` without a space; `{%25 tr …` is an unknown Jinja tag
+::warning file=broken.docx,title=DTL002 body ¶5 [T1 R2 C2 ¶1]::body ¶5 [T1 R2 C2 ¶1]: `{{` is only closed in paragraph ¶8; docxtpl merges these paragraphs and their formatting is lost (use --allow-cross-paragraph if intended)
+::error file=broken.docx,title=DTL209 body ¶8::body ¶8: `{%25p if vat %25}` makes docxtpl replace the whole paragraph with the tag, so `Total: {{ total }}` next to it disappears from the output without any error. Move that content to its own paragraph
+::error file=broken.docx,title=DTL101 footer1 ¶1::footer1 ¶1: `{%25 if %25}` is never closed: missing `{%25 endif %25}`
+[exit 1]
+
+$ docxtpl-lint broken.docx --no-config --format sarif
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "docxtpl-lint",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/yq6666-66/docxtpl-lint",
+          "rules": [
+            {
+              "id": "DTL001",
+              "shortDescription": {
+                "text": "tag never closed"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl001"
+            },
+            {
+              "id": "DTL002",
+              "shortDescription": {
+                "text": "tag spans several paragraphs"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl002"
+            },
+            {
+              "id": "DTL101",
+              "shortDescription": {
+                "text": "unclosed block"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl101"
+            },
+            {
+              "id": "DTL102",
+              "shortDescription": {
+                "text": "stray end/else/elif"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl102"
+            },
+            {
+              "id": "DTL103",
+              "shortDescription": {
+                "text": "Jinja2 syntax error"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl103"
+            },
+            {
+              "id": "DTL201",
+              "shortDescription": {
+                "text": "`%` or `}` inside a {%p/tr/tc/r %} tag (docxtpl #644)"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl201"
+            },
+            {
+              "id": "DTL202",
+              "shortDescription": {
+                "text": "space before tr/tc prefix"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl202"
+            },
+            {
+              "id": "DTL203",
+              "shortDescription": {
+                "text": "tr/tc tag outside a table"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl203"
+            },
+            {
+              "id": "DTL204",
+              "shortDescription": {
+                "text": "prefix mismatch between opening and closing tag (docxtpl #603)"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl204"
+            },
+            {
+              "id": "DTL205",
+              "shortDescription": {
+                "text": "{%tr %} block spans two tables"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl205"
+            },
+            {
+              "id": "DTL206",
+              "shortDescription": {
+                "text": "{%tr %} open and close in the same row"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl206"
+            },
+            {
+              "id": "DTL207",
+              "shortDescription": {
+                "text": "{%tc %} block must stay inside one row"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl207"
+            },
+            {
+              "id": "DTL208",
+              "shortDescription": {
+                "text": "cellbg/colspan/vm/hm tag outside a table cell"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl208"
+            },
+            {
+              "id": "DTL209",
+              "shortDescription": {
+                "text": "other content next to a {%p/tr/tc %} tag is silently dropped"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl209"
+            },
+            {
+              "id": "DTL301",
+              "shortDescription": {
+                "text": "variable missing from --data"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl301"
+            },
+            {
+              "id": "DTL302",
+              "shortDescription": {
+                "text": "data key never used (--report-unused-data)"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl302"
+            },
+            {
+              "id": "DTL303",
+              "shortDescription": {
+                "text": "loop over a non-iterable value from --data"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl303"
+            },
+            {
+              "id": "DTL304",
+              "shortDescription": {
+                "text": "variable not declared in --schema"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl304"
+            },
+            {
+              "id": "DTL305",
+              "shortDescription": {
+                "text": "loop over a value the --schema declares as non-iterable"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl305"
+            },
+            {
+              "id": "DTL401",
+              "shortDescription": {
+                "text": "verify: output silently lost when rendered by docxtpl"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl401"
+            },
+            {
+              "id": "DTL402",
+              "shortDescription": {
+                "text": "verify: docxtpl fails to render the template"
+              },
+              "helpUri": "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md#dtl402"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "DTL101",
+          "level": "error",
+          "message": {
+            "text": "[body ¶2 [T1 R1 C1 ¶1]] `{% for %}` is never closed: missing `{% endfor %}`"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "broken.docx"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "DTL202",
+          "level": "error",
+          "message": {
+            "text": "[body ¶2 [T1 R1 C1 ¶1]] write `{%tr …` without a space; `{% tr …` is an unknown Jinja tag"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "broken.docx"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "DTL002",
+          "level": "warning",
+          "message": {
+            "text": "[body ¶5 [T1 R2 C2 ¶1]] `{{` is only closed in paragraph ¶8; docxtpl merges these paragraphs and their formatting is lost (use --allow-cross-paragraph if intended)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "broken.docx"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "DTL209",
+          "level": "error",
+          "message": {
+            "text": "[body ¶8] `{%p if vat %}` makes docxtpl replace the whole paragraph with the tag, so `Total: {{ total }}` next to it disappears from the output without any error. Move that content to its own paragraph"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "broken.docx"
+                },
+                "region": {
+                  "startLine": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "DTL101",
+          "level": "error",
+          "message": {
+            "text": "[footer1 ¶1] `{% if %}` is never closed: missing `{% endif %}`"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "broken.docx"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+[exit 1]
+
+$ docxtpl-lint fix broken.docx
+# DTL202: no space between `{%` and the prefix
+--- a/broken.docx (body ¶2 [T1 R1 C1 ¶1])
++++ b/broken.docx (body ¶2 [T1 R1 C1 ¶1])
+@@ -1 +1 @@
+-{% tr for i in items %}
++{%tr for i in items %}
+[exit 0]
+
+$ docxtpl-lint infer invoice.docx 合同 模板.docx -o schema.json --sample sample.json
+[exit 0]
+
+$ docxtpl-lint invoice.docx --schema schema.json --no-config
+✔ 1 file(s) clean
+[exit 0]
+
+$ docxtpl-lint invoice_v2.docx --schema schema.json --no-config
+invoice_v2.docx:body ¶23:12: error DTL304 `invoice.po_number` is not declared in the JSON Schema (data contract)
+    {{ invoice.po_number }}
+invoice_v2.docx:body ¶24:1: error DTL304 `notes` is not declared in the JSON Schema (data contract)
+    {% for n in notes %}
+invoice_v2.docx:body ¶24:21: error DTL304 `notes[*]` is not declared in the JSON Schema (data contract)
+    {{ n }}
+
+✖ 3 error(s), 0 warning(s) in 1 file(s)
+[exit 1]
+
+$ docxtpl-lint verify invoice.docx 合同 模板.docx
+✔ 2 file(s) clean
+[exit 0]
+
+$ docxtpl-lint verify invoice.docx --data data.json
+✔ 1 file(s) clean
+[exit 0]
+
+$ docxtpl-lint diff invoice.docx invoice_v2.docx --fail-on-breaking
+BREAKING + invoice.po_number
+BREAKING + notes
+
+2 change(s), 2 breaking
+[exit 1]
+
+$ docxtpl-lint 合同 模板.docx --format json --no-config
+{
+  "schema_version": 1,
+  "tool": "docxtpl-lint",
+  "version": "1.0.0",
+  "files": [
+    {
+      "file": "合同 模板.docx",
+      "issues": [],
+      "variables": [
+        "clauses",
+        "clauses[].body",
+        "clauses[].title",
+        "contract.no",
+        "party_a.name",
+        "party_a.uscc",
+        "party_b.name",
+        "payments",
+        "payments[].amount",
+        "payments[].color",
+        "payments[].date",
+        "signer",
+        "合同.编号"
+      ]
+    }
+  ]
+}
+[exit 0]

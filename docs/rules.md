@@ -26,6 +26,7 @@ Rules can be suppressed for a whole file with a Jinja comment:
 | [DTL207](#dtl207) | error | {%tc %} block must stay inside one row |
 | [DTL208](#dtl208) | error | cellbg/colspan/vm/hm tag outside a table cell |
 | [DTL209](#dtl209) | error | other content next to a {%p/tr/tc %} tag is silently dropped |
+| [DTL210](#dtl210) | error | {%p %} open and close in the same paragraph |
 | [DTL301](#dtl301) | error | variable missing from --data |
 | [DTL302](#dtl302) | warning | data key never used (--report-unused-data) |
 | [DTL303](#dtl303) | error | loop over a non-iterable value from --data |
@@ -302,7 +303,7 @@ cell: {% cellbg 'FFFF00' %}Total
 <a id="dtl209"></a>
 ## DTL209 — other content next to a {%p/tr/tc %} tag is silently dropped
 
-**What it means.** docxtpl replaces the *whole* paragraph (`{%p`), table row (`{%tr`) or table cell (`{%tc`) with the bare tag. Any other text or `{{ … }}` in the same paragraph is removed from the output, without an error. Found with `docxtpl-lint verify`, then turned into this static rule. Only text in the tag's own paragraph is checked (other cells of a `{%tr` row are dropped too).
+**What it means.** docxtpl replaces the *whole* paragraph (`{%p`), table row (`{%tr`) or table cell (`{%tc`) with the bare tag. Any other text or `{{ … }}` in the same paragraph is removed from the output, without an error. Found with `docxtpl-lint verify`, then turned into this static rule. Checked: the tag's own paragraph, the other cells of a `{%tr` row, and the other paragraphs of a `{%tc` cell. Comments (`{# … #}`) and whitespace do not count.
 
 **Bad**
 
@@ -320,6 +321,25 @@ Total: {{ total }}
 ```
 
 **docxtpl behaviour.** renders without error, but `Total: …` is missing from the output.
+
+<a id="dtl210"></a>
+## DTL210 — {%p %} open and close in the same paragraph
+
+**What it means.** `{%p if %}` and `{%p endif %}` (or any `{%p` block) are in the same paragraph. docxtpl replaces the paragraph with the first tag, so the closing tag disappears.
+
+**Bad**
+
+```jinja
+{%p if show %}Shown{%p endif %}
+```
+
+**Fix** (inline condition, or one paragraph per tag)
+
+```jinja
+{% if show %}Shown{% endif %}
+```
+
+**docxtpl behaviour.** raises `TemplateSyntaxError: Encountered unknown tag 'endif'`.
 
 <a id="dtl301"></a>
 ## DTL301 — variable missing from --data

@@ -83,3 +83,25 @@
 | D55 | 第 9 轮代码审查的 4 条全部驳回 | (1) 同一路径的 DTL401 误报：每个路径只有一个哨兵，已补测试证明不会误报；(2) 守卫语义与 DTL301 保持一致，是设计如此；(3) `\bname\b` 不会匹配到 `names` 里的 name；(4) 新增嵌套字段时，父字段已经报为破坏性变更，子字段不再重复报 |
 | D56 | 版本号定为 1.0.0 | 新增了子命令和规则；原有的 `docxtpl-lint file.docx` 用法完全兼容 |
 | D57 | Pages 改为在推送到 main 时部署 | v0.2.0 用 release 事件触发时，因为是在 tag 上运行，被 github-pages 环境的保护规则拒绝，后来手动在 main 上触发才部署成功 |
+
+
+## v1.1：两份评估的分歧（DeepSeek 第 10 轮）及实验裁决
+
+| 编号 | 分歧 / 决定 | 实验（docxtpl 0.20.2） | 结论 |
+|---|---|---|---|
+| D58 | nested_loops_nested_tables：DeepSeek 认为 DTL206 是误诊 | 内层的 `{%tr for%}…{%tr endfor%}` 写在同一行时，docxtpl 报 "unknown tag 'endfor'"；把内层循环拆到单独的行后，能渲染出 [['p',''],['q','']] | DTL206 正确，DeepSeek 认错 |
+| D59 | `{%tr%}` 所在行的其他单元格有文字，DeepSeek 认为"不需要报" | 渲染结果中整张表都消失了，"extra" 丢失 | 应该报：DTL209 扩展到同一行的其他单元格，DeepSeek 同意 |
+| D60 | `{%tc if%}` / `{%tc endif%}` 跨行时，DeepSeek 认为 DTL207 是误报 | 输出变成 [['y'],['z']]，表格结构损坏，"extra" 丢失 | DTL207 正确，DeepSeek 认错 |
+| D61 | 注释紧挨 `{%p%}` 时报 DTL209 | 渲染正常，没有内容丢失 | 是误报，计算时先去掉注释 |
+| D62 | `{{ 'a }} b' }}` 报 DTL103 | docxtpl 正常输出 'a }} b' | 是误报，扫描器改为按 Jinja 的方式跳过字符串 |
+| D63 | 行内有其他文字的 `{%tr%}` 新增 DTL209（如 nested_table_location、tr_prefix_mismatch） | 渲染后整张表消失，"outer"/"inner" 丢失 | 新报出的 DTL209 都正确；在官方 40 个模板上仍为 0 误报 |
+| D64 | `{%p if%}x{%p endif%}` 写在同一段 | 报 "unknown tag 'endif'" | 新增 DTL210；这种情况不报 DTL209（因为不是静默丢失，而是直接报错） |
+| D65 | 不间断空格（NBSP）紧挨标签 | 渲染正常；只丢了一个看不见的空格 | 不报，DeepSeek 同意 |
+| D66 | schema 相关用例得到 DTL303 而不是 DTL305 | 测试脚本当时用 `--data` 跑这些用例，所以 DTL303 是对的 | 测试脚本加上 options（schema / report-unused-data / allow-cross-paragraph）后重跑 |
+| D67 | GitHub 输出把 `%` 转义成 `%25` | 这是 workflow 命令规范的要求 | 不改，DeepSeek 同意 |
+| D68 | infer 输出父级路径 | — | 按设计保留，DeepSeek 同意 |
+| D69 | 缺少一个 `}` 时，后面的内容被吞掉，只报 DTL002 警告（自评发现） | broken.docx 里的 endfro 拼写错误因此被掩盖 | 在遇到下一个 `{{`/`{%` 时报 DTL001 错误，并从那里继续扫描；fix 会建议补上 `}` |
+| D70 | 数据 JSON 带 BOM 时退出码为 2（自评发现） | 用 Windows 记事本格式保存的文件可以复现 | 改用 utf-8-sig 读取 |
+| D71 | 子命令遇到坏文件时抛出 traceback（自评发现） | 用 fake.docx 复现 | 统一返回退出码 2，并给出一行提示 |
+| D72 | 采纳 DeepSeek 的 UX 建议：`--explain`、单个模板时不输出 x-docxtpl-templates、改写 --data 帮助文字、在线试用页加载超时提示；不采纳：--quiet/--verbose，以及已有的彩色输出功能 | — | 详见 PLAN-v1.1.md |
+| D73 | 发现的问题全部写成测试：86 个对抗用例加裁决后的预期结果（benchmark/adversarial_adjudicated.json）放进 pytest | 当前 86/86 通过 | 以后修改代码时，这批用例能防止回归 |

@@ -1,0 +1,114 @@
+{
+  "_comment": "Expected results after checking each disputed DeepSeek case against docxtpl 0.20.2 (see docs/decisions.md D58-D70). Keys override docs/eval/adversarial_cases.json.",
+  "cases": {
+    "nested_loops_nested_tables": {
+      "expected_rules": [
+        "DTL206",
+        "DTL209"
+      ],
+      "adjudication": "E1: docxtpl raises (tr open+close in one row = DTL206); 'x' in the {%tr for%} row is dropped (DTL209, E2)"
+    },
+    "filter_with_percent_in_p_tag": {
+      "expected_rules": [
+        "DTL201",
+        "DTL210"
+      ],
+      "adjudication": "{%p if%}x{%p endif%} in one paragraph raises 'unknown tag endif' (DTL210, new in 1.1)"
+    },
+    "smart_quotes_in_tag": {
+      "expected_rules": [],
+      "adjudication": "docxtpl replaces smart quotes inside tags; renders ok"
+    },
+    "dtl209_whitespace_only_neighbour_nbsp": {
+      "expected_rules": [],
+      "adjudication": "only a no-break space is dropped: invisible, not reported (DeepSeek agreed)"
+    },
+    "dtl209_p_tag_with_nbsp": {
+      "expected_rules": [],
+      "adjudication": "same as above"
+    },
+    "tr_prefix_mismatch": {
+      "expected_rules": [
+        "DTL204",
+        "DTL209"
+      ],
+      "adjudication": "'x' and 'z' share rows with the loop tags and are dropped with them (E2)"
+    },
+    "tr_block_spans_two_tables": {
+      "expected_rules": [
+        "DTL205",
+        "DTL209"
+      ],
+      "adjudication": "'a'/'b' in the {%tr%} rows are dropped with the rows (E2)"
+    },
+    "nested_table_location": {
+      "expected_rules": [
+        "DTL209"
+      ],
+      "adjudication": "rendered: the whole table disappears, 'outer'/'inner' are lost (experiment E6)"
+    },
+    "infer_nested_loop_paths": {
+      "expected_rules": [
+        "items",
+        "items[].name",
+        "items[].price"
+      ],
+      "adjudication": "parent paths are the array/object nodes of the contract (by design, agreed)"
+    },
+    "infer_optional_field": {
+      "expected_rules": [
+        "user",
+        "user.name"
+      ],
+      "adjudication": "same"
+    },
+    "infer_defined_guard": {
+      "expected_rules": [
+        "user",
+        "user.email"
+      ],
+      "adjudication": "same"
+    },
+    "dtl209_tc_cell_neighbour": {
+      "expected_rules": [
+        "DTL207",
+        "DTL209"
+      ],
+      "adjudication": "E3: tc block across rows corrupts the table (DTL207); 'extra' lost"
+    },
+    "schema_loop_over_number": {
+      "expected_rules": [
+        "DTL303"
+      ],
+      "adjudication": "harness ran it with --data, where DTL303 is the right rule"
+    },
+    "schema_missing_var": {
+      "options": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "customer": {
+              "type": "object",
+              "properties": {
+                "address": {}
+              }
+            }
+          }
+        }
+      },
+      "adjudication": "harness: run with --schema (declares customer.address only)"
+    },
+    "unused_data_key": {
+      "options": {
+        "report_unused_data": true
+      },
+      "adjudication": "harness: run with --report-unused-data"
+    },
+    "cross_paragraph_allowed": {
+      "options": {
+        "allow_cross_paragraph": true
+      },
+      "adjudication": "harness: run with --allow-cross-paragraph"
+    }
+  }
+}

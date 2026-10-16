@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 from . import __version__
@@ -150,8 +151,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--data",
         action="append",
-        help="JSON file with a sample context; enables DTL301/DTL303. Repeatable: a path is only "
-        "reported missing if it is missing from every file",
+        help="JSON file with a sample context; enables DTL301/DTL303. Repeatable: a path is reported "
+        "only if it is absent from all given --data files",
     )
     ap.add_argument(
         "--schema",
@@ -166,6 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--warnings-as-errors", action="store_true", help="exit 1 on warnings too")
     ap.add_argument("--list-vars", action="store_true", help="print the data paths each template uses")
     ap.add_argument("--list-rules", action="store_true", help="print all rules and exit")
+    ap.add_argument("--explain", metavar="RULE", help="explain one rule (e.g. DTL209) and exit")
     ap.add_argument(
         "--context",
         type=int,
@@ -295,7 +297,13 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] in SUBCOMMANDS:
         _reconf()
-        return {"infer": main_infer, "verify": main_verify, "diff": main_diff, "fix": main_fix}[argv[0]](argv[1:])
+        sub = {"infer": main_infer, "verify": main_verify, "diff": main_diff, "fix": main_fix}[argv[0]]
+        try:
+            return sub(argv[1:])
+        except (OSError, zipfile.BadZipFile, KeyError, ValueError) as exc:
+            # documented exit code 2 = unreadable input, never a traceback
+            print(f"docxtpl-lint {argv[0]}: cannot read input (is it a .docx / JSON file?): {exc}", file=sys.stderr)
+            return 2
     ap = build_parser()
     pre, _ = ap.parse_known_args(argv)
     if not pre.no_config:
@@ -320,6 +328,15 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")
 
+    if args.explain:
+        r = RULES.get(args.explain.upper())
+        if r is None:
+            print(f"docxtpl-lint: unknown rule {args.explain}", file=sys.stderr)
+            return 2
+        msg = r.zh if args.lang == "zh" else r.en
+        print(f"{r.id} ({r.severity}): {r.summary}\n\n  message: {msg}\n\n  details, examples and docxtpl behaviour: "
+              f"{help_url(r.id)}")  # fmt: skip
+        return 0
     if args.list_rules:
         for r in RULES.values():
             print(f"{r.id}  {r.severity:<7}  {r.summary}")

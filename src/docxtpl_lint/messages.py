@@ -130,6 +130,14 @@ _RULES = [
         "请把这些内容放到单独的段落",
     ),
     Rule(
+        "DTL210",
+        "error",
+        "{%p %} open and close in the same paragraph",
+        "`{open_raw}` and `{close_raw}` are in the same paragraph; docxtpl replaces the paragraph with the first tag "
+        "and the template fails. Put them in separate paragraphs",
+        "`{open_raw}` 和 `{close_raw}` 在同一段里；docxtpl 会用第一个标签替换整段，渲染失败。请把它们放在不同的段落",
+    ),
+    Rule(
         "DTL301",
         "error",
         "variable missing from --data",

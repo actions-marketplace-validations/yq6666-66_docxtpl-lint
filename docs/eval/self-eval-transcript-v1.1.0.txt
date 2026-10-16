@@ -1,0 +1,135 @@
+
+$ docxtpl-lint invoice.docx --data data_bom_crlf.json --no-config
+✔ 1 file(s) clean
+[exit 0]
+
+$ docxtpl-lint broken.docx --no-config
+broken.docx:body ¶2 [T1 R1 C1 ¶1]:1: error DTL101 `{% for %}` is never closed: missing `{% endfor %}`
+    {% tr for i in items %}
+broken.docx:body ¶2 [T1 R1 C1 ¶1]:1: error DTL202 write `{%tr …` without a space; `{% tr …` is an unknown Jinja tag
+    {% tr for i in items %}
+broken.docx:body ¶5 [T1 R2 C2 ¶1]:1: error DTL001 `{{` is never closed with `}}`
+    {{ i.price }
+broken.docx:body ¶6 [T1 R3 C1 ¶1]:1: error DTL102 `{%tr endfro %}` has no matching opening block
+    {%tr endfro %}
+broken.docx:body ¶8:20: error DTL209 `{%p if vat %}` makes docxtpl replace the whole paragraph with the tag, so `Total: {{ total }}` next to it disappears from the output without any error. Move that content to its own paragraph
+    {%p if vat %}
+broken.docx:footer1 ¶1:1: error DTL101 `{% if %}` is never closed: missing `{% endif %}`
+    {% if show_page %}
+
+✖ 6 error(s), 0 warning(s) in 1 file(s)
+[exit 1]
+
+$ docxtpl-lint fix broken.docx
+# DTL202: no space between `{%` and the prefix
+--- a/broken.docx (body ¶2 [T1 R1 C1 ¶1])
++++ b/broken.docx (body ¶2 [T1 R1 C1 ¶1])
+@@ -1 +1 @@
+-{% tr for i in items %}
++{%tr for i in items %}
+
+# DTL001: close the tag with `}}`
+--- a/broken.docx (body ¶5 [T1 R2 C2 ¶1])
++++ b/broken.docx (body ¶5 [T1 R2 C2 ¶1])
+@@ -1 +1 @@
+-{{ i.price }
++{{ i.price }}
+
+# DTL102: did you mean `endfor`?
+--- a/broken.docx (body ¶6 [T1 R3 C1 ¶1])
++++ b/broken.docx (body ¶6 [T1 R3 C1 ¶1])
+@@ -1 +1 @@
+-{%tr endfro %}
++{%tr endfor %}
+[exit 0]
+
+$ docxtpl-lint verify fake.docx
+docxtpl-lint verify: cannot read input (is it a .docx / JSON file?): File is not a zip file
+[exit 2]
+
+$ docxtpl-lint infer invoice.docx
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "docxtpl template data",
+  "type": "object",
+  "properties": {
+    "customer": {
+      "type": "object",
+      "properties": {
+        "name": {},
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": {},
+            "city": {}
+          },
+          "required": [
+            "street",
+            "city"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "address"
+      ]
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {},
+          "qty": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "qty",
+          "price"
+        ]
+      }
+    },
+    "discount": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "currency": {},
+    "company": {
+      "type": "object",
+      "properties": {
+        "name": {},
+        "vat_id": {}
+      },
+      "required": [
+        "name",
+        "vat_id"
+      ]
+    },
+    "invoice": {
+      "type": "object",
+      "properties": {
+        "no": {},
+        "date": {}
+      },
+      "required": [
+        "no",
+        "date"
+      ]
+    }
+  },
+  "required": [
+    "customer",
+    "lines",
+    "total",
+    "company",
+    "invoice"
+  ]
+}
+[exit 0]

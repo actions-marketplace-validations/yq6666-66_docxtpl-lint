@@ -143,8 +143,18 @@ def infer_tree(paths: list[str | Path]) -> Node:
 
 
 def to_schema(root: Node, title: str = "docxtpl template data") -> dict[str, Any]:
+    if len(root.templates) <= 1:
+        _clear_templates(root)  # x-docxtpl-templates only helps when several templates are merged
     s = _schema(root, top=True)
     return {"$schema": SCHEMA_DIALECT, "title": title, **s}
+
+
+def _clear_templates(n: Node) -> None:
+    n.templates = set()
+    for c in n.children.values():
+        _clear_templates(c)
+    if n.item is not None:
+        _clear_templates(n.item)
 
 
 def _schema(n: Node, top: bool = False) -> dict[str, Any]:
@@ -225,7 +235,7 @@ def check_schema(file: str, an: Analysis, schema: dict[str, Any]) -> list[Issue]
 
 
 def load_schema(path: str | Path) -> dict[str, Any]:
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
 
 # ---------------------------------------------------------------- contract diff

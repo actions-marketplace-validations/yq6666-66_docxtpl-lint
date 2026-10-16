@@ -34,6 +34,15 @@ All 40 templates are linted in about 0.1 s. Since 1.0 the benchmark also runs `v
 with the real docxtpl): 37 of 40 templates render with inferred data alone, with 0 false DTL401. The other three are the
 deliberately broken template and two that need Python objects (a custom Jinja filter, a function passed in the context).
 
+## Tested adversarially (1.1)
+
+DeepSeek designed 86 adversarial templates from the docs ([cases](docs/eval/adversarial_cases.json)). Each was built as
+a real `.docx` and also rendered with docxtpl to decide disputes. The first run found 5 real problems, all fixed in 1.1:
+`}}` inside a string literal, unclosed `{% raw %}`, comments counted as lost text, text in other cells of a `{%tr %}` row,
+and noisy DTL209 next to errors. Now all 86 cases match the
+[adjudicated expectations](benchmark/adversarial_adjudicated.json) in CI. Reports: [DeepSeek's evaluation](docs/eval/deepseek-eval.md),
+[self-evaluation](docs/eval/self-eval.md).
+
 ## What's new in 1.0: from linting to data contracts
 
 Five things no other docxtpl tool does (see [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md) for the reasoning):
@@ -92,6 +101,7 @@ docxtpl-lint contract.docx --list-vars                   # which data does this 
 docxtpl-lint contract.docx --lang zh                     # 中文提示
 docxtpl-lint contract.docx --context 2                   # show 2 paragraphs around each issue
 docxtpl-lint --list-rules
+docxtpl-lint --explain DTL209                           # what a rule means, with a link to examples
 docxtpl-lint infer contract.docx -o schema.json --sample sample.json
 docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
@@ -148,7 +158,8 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 | DTL206 | error | `{%tr for %}` and `{%tr endfor %}` in the same row | raises |
 | DTL207 | error | `{%tc for %}` and `{%tc endfor %}` in different rows | **silently** corrupts the table |
 | DTL208 | error | `{% cellbg %}` / `{% colspan %}` / `{% vm %}` / `{% hm %}` outside a table cell | raises "unknown tag" |
-| DTL209 | error | other text next to a `{%p %}` / `{%tr %}` / `{%tc %}` tag | **silently** drops that text |
+| DTL209 | error | other text next to a `{%p %}` / `{%tr %}` / `{%tc %}` tag (same paragraph / row / cell) | **silently** drops that text |
+| DTL210 | error | `{%p if %}` … `{%p endif %}` in one paragraph | raises |
 | DTL301 | error | (`--data`) variable missing from every sample context | renders empty or raises |
 | DTL302 | warning | (`--report-unused-data`) top-level data key never used | n/a |
 | DTL303 | error | (`--data`) `for` over a number / boolean / null | raises at render time |

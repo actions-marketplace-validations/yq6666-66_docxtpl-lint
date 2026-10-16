@@ -42,6 +42,10 @@ const out = document.getElementById("out");
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 let lastName = null, lastBytes = null;
 
+const slow = setTimeout(() => {
+  if (out.textContent.startsWith("Loading")) out.innerHTML = '<span class="warn">Still loading Python… On a slow or offline network ' +
+    'this can fail; the same checks run locally with <code>pip install "docxtpl-lint @ git+https://github.com/yq6666-66/docxtpl-lint"</code>.</span>';
+}, 30000);
 const ready = (async () => {
   const py = await loadPyodide();
   await py.loadPackage(["micropip", "lxml", "jinja2"]);
@@ -69,6 +73,7 @@ def run(path, name, lang, mode="lint"):
         text += "\\n\\n".join(f.diff(lang) for f in fixes).replace(path.lstrip("/"), name)
     return text
 `);
+  clearTimeout(slow);
   out.innerHTML = '<span class="ok">Ready</span> <span class="dim">docxtpl-lint ' + py.globals.get("__version__") + "</span>";
   return py;
 })().catch((e) => { out.innerHTML = '<span class="err">Failed to load: ' + esc(String(e)) + "</span>"; throw e; });

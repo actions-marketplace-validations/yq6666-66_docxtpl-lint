@@ -1,0 +1,995 @@
+[
+  {
+    "name": "whitespace_control_trim_ok",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Whitespace-control markers are valid Jinja and must not be flagged."
+  },
+  {
+    "name": "whitespace_control_unclosed",
+    "command": "lint",
+    "expected": [
+      "DTL101"
+    ],
+    "actual": [
+      "DTL101"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Unexpected end of template. Jinja was looking for the follow",
+    "why": "Unclosed block with trim markers should still report DTL101."
+  },
+  {
+    "name": "raw_block_with_tags",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Tags inside raw blocks must not be parsed as variables."
+  },
+  {
+    "name": "raw_block_unclosed",
+    "command": "lint",
+    "expected": [
+      "DTL101"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "raises TemplateSyntaxError: Missing end of raw directive",
+    "why": "Unclosed raw block is an unclosed block."
+  },
+  {
+    "name": "comment_with_tags",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Tags inside Jinja comments must be ignored."
+  },
+  {
+    "name": "comment_unclosed",
+    "command": "lint",
+    "expected": [
+      "DTL001"
+    ],
+    "actual": [
+      "DTL001"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Missing end of comment tag",
+    "why": "Unclosed comment tag is DTL001."
+  },
+  {
+    "name": "nested_loops_nested_tables",
+    "command": "lint",
+    "expected": [],
+    "actual": [
+      "DTL206"
+    ],
+    "match": false,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'endfor'.",
+    "why": "Nested tr loops in nested tables should be valid."
+  },
+  {
+    "name": "loop_index_usage",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "loop.index is a valid loop variable."
+  },
+  {
+    "name": "macro_definition_and_call",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Macros are valid Jinja constructs."
+  },
+  {
+    "name": "set_block",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "set blocks are valid."
+  },
+  {
+    "name": "filter_with_percent",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Modulo in a plain {{ }} expression is fine."
+  },
+  {
+    "name": "filter_with_percent_in_p_tag",
+    "command": "lint",
+    "expected": [
+      "DTL201"
+    ],
+    "actual": [
+      "DTL201",
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'endif'.",
+    "why": "% inside a {%p %} tag is DTL201."
+  },
+  {
+    "name": "string_literal_with_close_brace",
+    "command": "lint",
+    "expected": [],
+    "actual": [
+      "DTL103"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "}} inside a string literal must not terminate the tag."
+  },
+  {
+    "name": "string_literal_with_percent_brace",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "%} inside a string literal must not terminate the tag."
+  },
+  {
+    "name": "chinese_text_ok",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Chinese text around a variable is fine."
+  },
+  {
+    "name": "chinese_unclosed_block",
+    "command": "lint",
+    "expected": [
+      "DTL101"
+    ],
+    "actual": [
+      "DTL101"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Unexpected end of template. Jinja was looking for the follow",
+    "why": "Chinese identifiers should not confuse block tracking."
+  },
+  {
+    "name": "smart_quotes_in_tag",
+    "command": "lint",
+    "expected": [
+      "DTL103"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Word smart quotes inside an expression are a Jinja syntax error."
+  },
+  {
+    "name": "smart_quotes_in_text",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Smart quotes in surrounding text must not be flagged."
+  },
+  {
+    "name": "richtext_r_tag",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "{%r %} is a valid docxtpl RichText tag."
+  },
+  {
+    "name": "richtext_r_tag_with_percent",
+    "command": "lint",
+    "expected": [
+      "DTL201"
+    ],
+    "actual": [
+      "DTL201"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'r'.",
+    "why": "% inside {%r %} is DTL201."
+  },
+  {
+    "name": "p_tag_with_text_neighbour",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Text next to a {%p %} tag is silently dropped."
+  },
+  {
+    "name": "p_tag_alone_ok",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "A {%p %} tag alone in its paragraph is fine."
+  },
+  {
+    "name": "cellbg_in_cell_ok",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "cellbg inside a table cell is valid."
+  },
+  {
+    "name": "cellbg_outside_cell",
+    "command": "lint",
+    "expected": [
+      "DTL208"
+    ],
+    "actual": [
+      "DTL208"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'cellbg'.",
+    "why": "cellbg outside a table cell is DTL208."
+  },
+  {
+    "name": "colspan_vm_hm_outside_cell",
+    "command": "lint",
+    "expected": [
+      "DTL208"
+    ],
+    "actual": [
+      "DTL208"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'colspan'.",
+    "why": "colspan/vm/hm outside a cell are DTL208."
+  },
+  {
+    "name": "header_paragraph_lint",
+    "command": "lint",
+    "expected": [
+      "DTL101"
+    ],
+    "actual": [
+      "DTL101"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Unexpected end of template. Jinja was looking for the follow",
+    "why": "Unclosed block in header must be reported."
+  },
+  {
+    "name": "guarded_var_default",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "default() guards a missing path."
+  },
+  {
+    "name": "guarded_var_is_defined",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "is defined guards a missing path."
+  },
+  {
+    "name": "empty_list_no_missing_field",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "An empty list cannot prove a field missing."
+  },
+  {
+    "name": "number_vs_string_data",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "String value for a printed variable is fine."
+  },
+  {
+    "name": "loop_over_number_data",
+    "command": "lint",
+    "expected": [
+      "DTL303"
+    ],
+    "actual": [
+      "DTL303"
+    ],
+    "match": true,
+    "docxtpl": "raises TypeError: 'int' object is not iterable",
+    "why": "Looping over a number from data is DTL303."
+  },
+  {
+    "name": "unknown_tag_do",
+    "command": "lint",
+    "expected": [
+      "DTL103"
+    ],
+    "actual": [
+      "DTL103"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'do'.",
+    "why": "{% do %} is not enabled in docxtpl."
+  },
+  {
+    "name": "unknown_tag_break",
+    "command": "lint",
+    "expected": [
+      "DTL103"
+    ],
+    "actual": [
+      "DTL103"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'break'. Jinja was looking for the f",
+    "why": "{% break %} is not enabled in docxtpl."
+  },
+  {
+    "name": "dtl209_whitespace_only_neighbour",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Whitespace-only neighbours should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_whitespace_only_neighbour_nbsp",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Non-breaking space is real content next to {%p %}."
+  },
+  {
+    "name": "elif_else_chain_ok",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Valid elif/else chain."
+  },
+  {
+    "name": "stray_elif",
+    "command": "lint",
+    "expected": [
+      "DTL102"
+    ],
+    "actual": [
+      "DTL102"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'elif'.",
+    "why": "Stray elif is DTL102."
+  },
+  {
+    "name": "tr_prefix_mismatch",
+    "command": "lint",
+    "expected": [
+      "DTL204"
+    ],
+    "actual": [
+      "DTL204"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Plain for closed by tr endfor is DTL204."
+  },
+  {
+    "name": "tr_block_spans_two_tables",
+    "command": "lint",
+    "expected": [
+      "DTL205"
+    ],
+    "actual": [
+      "DTL205"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "tr block across two tables is DTL205."
+  },
+  {
+    "name": "tr_open_close_same_row",
+    "command": "lint",
+    "expected": [
+      "DTL206"
+    ],
+    "actual": [
+      "DTL206"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'endfor'.",
+    "why": "tr open and close in the same row is DTL206."
+  },
+  {
+    "name": "tc_block_across_rows",
+    "command": "lint",
+    "expected": [
+      "DTL207"
+    ],
+    "actual": [
+      "DTL207"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "tc block across rows is DTL207."
+  },
+  {
+    "name": "tr_tag_outside_table",
+    "command": "lint",
+    "expected": [
+      "DTL203"
+    ],
+    "actual": [
+      "DTL203",
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'tr'.",
+    "why": "tr tag outside a table is DTL203."
+  },
+  {
+    "name": "space_before_tr_prefix",
+    "command": "lint",
+    "expected": [
+      "DTL202"
+    ],
+    "actual": [
+      "DTL202"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'tr'.",
+    "why": "Space before tr prefix is DTL202."
+  },
+  {
+    "name": "verify_lost_output_p_tag",
+    "command": "verify",
+    "expected": [
+      "DTL401"
+    ],
+    "actual": [
+      "DTL401"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "verify should detect the silently dropped {{ total }}."
+  },
+  {
+    "name": "verify_clean_template",
+    "command": "verify",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "A clean template should produce no verify findings."
+  },
+  {
+    "name": "infer_nested_loop_paths",
+    "command": "infer",
+    "expected": [
+      "items[].name",
+      "items[].price"
+    ],
+    "actual": [
+      "items",
+      "items[].name",
+      "items[].price"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "infer should list nested loop item paths."
+  },
+  {
+    "name": "infer_round_number",
+    "command": "infer",
+    "expected": [
+      "total"
+    ],
+    "actual": [
+      "total"
+    ],
+    "match": true,
+    "docxtpl": "raises TypeError: type Undefined doesn't define __round__ method",
+    "why": "round filter should infer a number field."
+  },
+  {
+    "name": "fix_endfro_typo",
+    "command": "fix",
+    "expected": [
+      "fix"
+    ],
+    "actual": [
+      "fix"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'endfro'. Jinja was looking for the ",
+    "why": "endfro should get a fix suggestion."
+  },
+  {
+    "name": "fix_space_before_tr",
+    "command": "fix",
+    "expected": [
+      "fix"
+    ],
+    "actual": [
+      "fix"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'tr'.",
+    "why": "Space before tr prefix should get a fix suggestion."
+  },
+  {
+    "name": "fix_typo_with_data",
+    "command": "fix",
+    "expected": [
+      "fix"
+    ],
+    "actual": [
+      "fix"
+    ],
+    "match": true,
+    "docxtpl": "raises UndefinedError: 'custmer' is undefined",
+    "why": "custmer should be suggested as customer with --data."
+  },
+  {
+    "name": "schema_missing_var",
+    "command": "lint",
+    "expected": [
+      "DTL304"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Variable not declared in schema is DTL304."
+  },
+  {
+    "name": "schema_loop_over_number",
+    "command": "lint",
+    "expected": [
+      "DTL305"
+    ],
+    "actual": [
+      "DTL303"
+    ],
+    "match": false,
+    "docxtpl": "raises TypeError: 'int' object is not iterable",
+    "why": "Loop over schema-declared number is DTL305."
+  },
+  {
+    "name": "unused_data_key",
+    "command": "lint",
+    "expected": [
+      "DTL302"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Unused top-level key should be DTL302 with --report-unused-data."
+  },
+  {
+    "name": "missing_var_from_data",
+    "command": "lint",
+    "expected": [
+      "DTL301"
+    ],
+    "actual": [
+      "DTL301"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Missing nested field should be DTL301."
+  },
+  {
+    "name": "cross_paragraph_tag",
+    "command": "lint",
+    "expected": [
+      "DTL002"
+    ],
+    "actual": [
+      "DTL002"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Tag spanning paragraphs is DTL002."
+  },
+  {
+    "name": "cross_paragraph_allowed",
+    "command": "lint",
+    "expected": [],
+    "actual": [
+      "DTL002"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "With --allow-cross-paragraph DTL002 should be suppressed."
+  },
+  {
+    "name": "nested_table_location",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Valid tr block in a table should not be flagged."
+  },
+  {
+    "name": "table_cell_with_brace",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Variables in table cells should be fine."
+  },
+  {
+    "name": "table_cell_unclosed",
+    "command": "lint",
+    "expected": [
+      "DTL001"
+    ],
+    "actual": [
+      "DTL001"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: unexpected '/'",
+    "why": "Unclosed tag in a cell is DTL001."
+  },
+  {
+    "name": "header_with_table",
+    "command": "lint",
+    "expected": [
+      "DTL203"
+    ],
+    "actual": [
+      "DTL203",
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'tr'.",
+    "why": "tr tag in header outside a table is DTL203."
+  },
+  {
+    "name": "verify_render_failure",
+    "command": "verify",
+    "expected": [
+      "DTL402"
+    ],
+    "actual": [
+      "DTL402"
+    ],
+    "match": true,
+    "docxtpl": "raises UndefinedError: 'money' is undefined",
+    "why": "Unknown function should cause DTL402."
+  },
+  {
+    "name": "verify_conditional_output_not_checked",
+    "command": "verify",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Conditional outputs are not checked by verify."
+  },
+  {
+    "name": "infer_optional_field",
+    "command": "infer",
+    "expected": [
+      "user.name"
+    ],
+    "actual": [
+      "user",
+      "user.name"
+    ],
+    "match": false,
+    "docxtpl": "raises UndefinedError: 'user' is undefined",
+    "why": "default() should infer an optional field."
+  },
+  {
+    "name": "infer_defined_guard",
+    "command": "infer",
+    "expected": [
+      "user.email"
+    ],
+    "actual": [
+      "user",
+      "user.email"
+    ],
+    "match": false,
+    "docxtpl": "raises UndefinedError: 'user' is undefined",
+    "why": "is defined should infer an optional field."
+  },
+  {
+    "name": "fix_prefix_mismatch",
+    "command": "fix",
+    "expected": [
+      "fix"
+    ],
+    "actual": [
+      "fix"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Prefix mismatch should get a fix suggestion."
+  },
+  {
+    "name": "fix_iff_typo",
+    "command": "fix",
+    "expected": [
+      "fix"
+    ],
+    "actual": [
+      "fix"
+    ],
+    "match": true,
+    "docxtpl": "raises TemplateSyntaxError: Encountered unknown tag 'iff'.",
+    "why": "iff should be suggested as if."
+  },
+  {
+    "name": "fix_no_suggestion_for_valid",
+    "command": "fix",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Valid template should have no fix suggestions."
+  },
+  {
+    "name": "dtl209_tr_row_neighbour",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Extra text in the same row as {%tr %} is dropped."
+  },
+  {
+    "name": "dtl209_tc_cell_neighbour",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL207",
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Extra text in the same cell as {%tc %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_variable",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Variable next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_only_whitespace",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Whitespace around {%p %} should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_tab",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Tab is whitespace and should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_newline",
+    "command": "lint",
+    "expected": [],
+    "actual": [],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Newline is whitespace and should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_nbsp",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "NBSP is not whitespace for DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_zero_width",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Zero-width space is content next to {%p %}."
+  },
+  {
+    "name": "dtl209_p_tag_with_punctuation",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Punctuation next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_comment",
+    "command": "lint",
+    "expected": [],
+    "actual": [
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "A Jinja comment next to {%p %} renders as nothing and should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_comment",
+    "command": "lint",
+    "expected": [],
+    "actual": [
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Whitespace and comment around {%p %} should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_comment_and_text",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Text next to {%p %} is dropped even with a comment."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_text",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Text next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_variable",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Variable next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_comment_and_text",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Text next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_comment_and_variable",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Variable next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_comment_and_whitespace",
+    "command": "lint",
+    "expected": [],
+    "actual": [
+      "DTL209"
+    ],
+    "match": false,
+    "docxtpl": "ok",
+    "why": "Whitespace and comment around {%p %} should not trigger DTL209."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_comment_and_whitespace_and_text",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Text next to {%p %} is dropped."
+  },
+  {
+    "name": "dtl209_p_tag_with_whitespace_and_comment_and_whitespace_and_variable",
+    "command": "lint",
+    "expected": [
+      "DTL209"
+    ],
+    "actual": [
+      "DTL209"
+    ],
+    "match": true,
+    "docxtpl": "ok",
+    "why": "Variable next to {%p %} is dropped."
+  }
+]

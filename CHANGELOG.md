@@ -6,10 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-16
+
+Found by an adversarial run (86 cases designed by DeepSeek, disputes settled by rendering with docxtpl) and a
+self-evaluation from a fresh install (docs/eval/).
+
+### Added
+- DTL210: `{%p %}` block opened and closed in the same paragraph (docxtpl raises).
+- `--explain RULE`.
+- `fix` suggests the missing `}` of a `{{ … }` tag.
+- `scripts/adversarial.py` + `benchmark/adversarial_adjudicated.json`: the 86 cases run in the test-suite.
+- `scripts/realworld.py`: invoice / Chinese contract / broken / 3000-paragraph templates used by the self-evaluation.
+
 ### Fixed
-- Playground: the 1.0.0 page failed to load (escaped newlines in the embedded Python). The Pyodide smoke test now runs
-  the page's own Python code in every mode.
-- `fix` diff headers: no `a//tmp/...` double slash; the playground shows the uploaded file name.
+- `}}` or `%}` inside a string literal no longer ends the tag (false DTL103).
+- A tag missing its closing brace no longer swallows the following paragraphs (it was only a DTL002 warning and
+  hid later errors); it is reported as DTL001 and scanning continues at the next tag.
+- Unclosed `{% raw %}` is reported (DTL101).
+- DTL209: comments are not counted as lost text; text in other cells of a `{%tr %}` row and in other paragraphs of a
+  `{%tc %}` cell is now checked; no DTL209 next to DTL201/202/203 or a same-paragraph `{%p %}` pair.
+- `--data` / `--schema` JSON with a UTF-8 BOM (Windows Notepad) is accepted.
+- `infer` / `verify` / `diff` / `fix` exit with code 2 and a one-line message on unreadable input instead of a traceback.
+- Playground: the 1.0.0 page failed to load (escaped newlines in the embedded Python); the Pyodide smoke test now runs
+  the page's own code. A hint appears if loading takes over 30 s.
+- `fix` diff headers: no `a//tmp/...` double slash.
+
+### Changed
+- `infer` writes `x-docxtpl-templates` only when several templates are merged.
+- Clearer `--data` help text.
 
 ## [1.0.0] - 2026-10-16
 
@@ -69,7 +93,8 @@ All notable changes to this project are documented here. The format follows
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yq6666-66/docxtpl-lint/releases/tag/v0.1.0

@@ -95,6 +95,36 @@ CASES = [
         "silent",
         lost="Items",
     ),
+    Case(
+        "dtl209_bad_tr_row",
+        lambda d: _table(d, 2, 2, {(0, 0): "{%tr if x %}", (0, 1): "Note", (1, 0): "{%tr endif %}"}),
+        ["DTL209"],
+        "silent",
+        lost="Note",
+    ),
+    Case(
+        "dtl209_comment_ok",
+        lambda d: [
+            d.add_paragraph("{# note #} {%p if x %}"),
+            d.add_paragraph("{{ v }}"),
+            d.add_paragraph("{%p endif %}"),
+        ],
+        [],
+        "ok",
+    ),
+    # DTL210
+    Case("dtl210_bad", lambda d: d.add_paragraph("{%p if x %}yes{%p endif %}"), ["DTL210"], "raises"),
+    # string literal containing }} (Jinja's lexer skips strings)
+    Case("string_close_ok", lambda d: d.add_paragraph("{{ 'a }} b' }} {% if x %}{{ \"%}\" }}{% endif %}"), [], "ok"),
+    # unclosed {% raw %}
+    Case("raw_unclosed_bad", lambda d: d.add_paragraph("{% raw %}{{ x }}"), ["DTL101"], "raises"),
+    # a missing brace must not swallow the next tags: the typo after it is still found
+    Case(
+        "missing_brace_bad",
+        lambda d: [d.add_paragraph("{{ v }"), d.add_paragraph("{% for i in xs %}{{ i }}{% endfro %}")],
+        ["DTL001", "DTL101", "DTL102"],
+        "raises",
+    ),
     # DTL206
     Case(
         "dtl206_bad",

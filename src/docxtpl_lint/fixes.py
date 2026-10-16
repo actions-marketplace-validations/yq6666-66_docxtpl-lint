@@ -119,7 +119,12 @@ def suggest(rep: Report, contexts: list[Any] | None = None) -> list[Fix]:
             continue
         new_raw: str | None = None
         note = ""
-        if iss.rule == "DTL202":
+        if iss.rule == "DTL001" and raw.startswith("{{") and len(raw) < 60:
+            body = raw.rstrip()
+            if body.endswith("}") and not body.endswith("}}"):
+                new_raw = raw.replace(body, body + "}", 1)
+                note = "close the tag with `}}`"
+        elif iss.rule == "DTL202":
             new_raw = re.sub(r"\{%(-?)\s+(tr|tc|p|r)\s+", r"{%\1\2 ", raw, count=1)
             note = "no space between `{%` and the prefix"
         elif iss.rule == "DTL204":

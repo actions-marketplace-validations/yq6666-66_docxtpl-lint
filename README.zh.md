@@ -33,6 +33,10 @@ python-docx-template 的 `tests/templates` 中的 40 个模板由 docxtpl 维护
 全部 40 个模板的检查耗时约 0.1 秒。自 1.0 起，基准测试还会运行 `verify`（推断示例数据，然后用真正的 docxtpl 渲染）：
 40 个模板中有 37 个仅凭推断数据即可渲染，且 0 个 DTL401 误报。其余三个分别是故意损坏的模板，以及两个需要 Python 对象的模板（一个自定义 Jinja 过滤器、一个传入上下文的函数）。
 
+## 对抗测试（1.1）
+
+DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/adversarial_cases.json)），每个都生成为真实的 `.docx`，并用 docxtpl 实际渲染来裁决分歧。第一轮发现 5 个真实问题，已在 1.1 全部修复：字符串里的 `}}`、未闭合的 `{% raw %}`、注释被当成丢失文本、`{%tr %}` 行中其他单元格的文本、报错旁多余的 DTL209。现在 86 个用例在 CI 中全部符合[裁决后的预期](benchmark/adversarial_adjudicated.json)。报告：[DeepSeek 评估](docs/eval/deepseek-eval.md)、[自评](docs/eval/self-eval.md)。
+
 ## 1.0 的新特性：从检查到数据契约
 
 有五件事是其他 docxtpl 工具都做不到的（推理过程见 [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md)）：
@@ -89,6 +93,7 @@ docxtpl-lint contract.docx --list-vars                   # which data does this 
 docxtpl-lint contract.docx --lang zh                     # 中文提示
 docxtpl-lint contract.docx --context 2                   # show 2 paragraphs around each issue
 docxtpl-lint --list-rules
+docxtpl-lint --explain DTL209                           # 规则说明及示例链接
 docxtpl-lint infer contract.docx -o schema.json --sample sample.json
 docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
@@ -145,7 +150,8 @@ lang = "en"                           # or "zh"
 | DTL206 | error | `{%tr for %}` 和 `{%tr endfor %}` 在同一行中 | 抛出异常 |
 | DTL207 | error | `{%tc for %}` 和 `{%tc endfor %}` 在不同的行中 | **静默地**破坏表格 |
 | DTL208 | error | `{% cellbg %}` / `{% colspan %}` / `{% vm %}` / `{% hm %}` 在表格单元格之外 | 抛出 "unknown tag" |
-| DTL209 | error | 紧邻 `{%p %}` / `{%tr %}` / `{%tc %}` 标签的其他文本 | **静默地**丢弃该文本 |
+| DTL209 | error | 与 `{%p %}` / `{%tr %}` / `{%tc %}` 标签在同一段 / 同一行 / 同一单元格的其他文本 | **静默地**丢弃该文本 |
+| DTL210 | error | `{%p if %}` … `{%p endif %}` 写在同一段里 | 抛出异常 |
 | DTL301 | error | （`--data`）变量在每个示例上下文中都缺失 | 渲染为空或抛出异常 |
 | DTL302 | warning | （`--report-unused-data`）顶层数据键从未被使用 | 不适用 |
 | DTL303 | error | （`--data`）对数字 / 布尔值 / null 进行 `for` | 在渲染时抛出异常 |
