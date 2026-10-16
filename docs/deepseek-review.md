@@ -485,3 +485,245 @@ def test_nested_table_cells(tmp_path):
 - README.zh.md：DeepSeek 翻译，我审阅，原样采用
 - CONTRIBUTING.md：DeepSeek 起草，我补了 venv 激活这一步
 - tests/test_reader.py：DeepSeek 起草，我审阅，3 个测试全部通过，删掉了一个没用到的 import
+
+
+## 第 5 轮：v0.2 计划（提示词）
+
+````
+docxtpl-lint v0.1.0 已发布（GitHub，0 star，PyPI 还没发）。下面是 v0.2 的计划草案，目标是推广增长和质量。请用中文、编号作答：逐条判断要做、不做还是降级，说明理由，并指出遗漏的高杠杆项和风险。不要为了说好话而同意。
+
+新的事实：我用 v0.1.0 跑了 docxtpl 官方仓库 tests/templates 下的 40 个真实模板：
+- 7 条是误报：
+  - docxtpl 自有的单元格标签 {% cellbg x %}、{% colspan n %}、{% vm %}、{% hm %} 被报成 unknown tag（DTL103），实际上 patch_xml 会改写它们；
+  - 智能引号：patch_xml 会把标签内的 ‘’“” 换成普通引号，而我们报成 syntax error。
+- 1 条是真问题：template_error_tpl.docx 里多了一个 {% endif %}，这个模板本来就是故意写错的。
+
+草案（按我认为的优先级）：
+P0 质量
+  a. 修上面的误报：识别 cellbg/colspan/vm/hm，并新增 DTL208 检查这些标签是否在表格单元格里；标签内的智能引号先归一化再解析。
+  b. 基准：CI 每周拉取 docxtpl 官方的测试模板跑一遍，要求“0 误报，template_error 必须报出”；README 写上基准结果。
+P1 增长
+  c. 浏览器 Playground：GitHub Pages + Pyodide，直接加载我们的 wheel（lxml 和 jinja2 在 Pyodide 里都有），拖入 docx 就在本地出报告，文件不上传。
+  d. 用 vhs 录一段更好的 GIF？还是继续用静态 SVG？
+  e. 文档站点（mkdocs）？
+P1 工程
+  f. Action 升级到 Node24 版本：checkout@v7、setup-python@v7。
+  g. 准备好 PyPI Trusted Publishing 的发布工作流（release 发布时触发，环境名 pypi），但不主动触发。
+  h. 配置文件：pyproject 里的 [tool.docxtpl-lint] 段（select/ignore/data/allow-cross-paragraph 等）。
+  i. --context N：多打印出错位置前后几段的文字，不用打开 Word 就能定位（“无需 Word 的位置预览”）。
+P2 待定
+  j. --fix-safe：自动修复，比如把 `{% tr` 改成 `{%tr`、把智能引号改成直引号。我倾向不做：v0.1 承诺过只读；而且改写 docx 时 run 拆分和格式很难保真。
+  k. 跨段落开关：v0.1 已经有 --allow-cross-paragraph 了。
+  l. VS Code 扩展：docx 是二进制，VS Code 里看不了，价值存疑。
+
+````
+
+### DeepSeek 回复（原文）
+
+下面逐条判断。先说一个总体判断：**这份草案把"质量"和"增长"的优先级排反了，而且 P0 里混进了一个不该在 v0.2 做的检查项。** 另外，你手上这 40 个模板的基准数据，价值远大于草案里任何一条增长项，但草案只把它当成"CI 跑一下"。
+
+---
+
+## 逐条判断
+
+**a. 修误报（cellbg/colspan/vm/hm + 智能引号归一化）—— 做，但拆开**
+
+- 智能引号归一化：**必做，P0 最高**。这是纯 bug，patch_xml 的行为是 docxtpl 的既定语义，你的 linter 不识别就是错的。而且实现简单（解析前对标签内字符做一次映射），风险低。
+- 识别 cellbg/colspan/vm/hm：**做，但只做"识别 + 不报 DTL103"**，也就是把它们加入已知标签白名单。
+- **DTL208（这些标签必须在表格单元格里）—— 降级到 P2 或直接砍掉。** 理由：
+  1. 这是 docxtpl 的语义约束，不是 lint 的核心价值。你的工具定位是"发现模板错误"，不是"复刻 docxtpl 的全部运行时校验"。
+  2. 你只有 1 个真问题样本（还是故意写错的），没有任何证据表明用户会犯这个错。
+  3. 每加一条检查就多一份误报风险和维护成本。v0.1 已经因为"自作聪明"产生了 7 条误报，教训应该吸取。
+  4. 如果真要做，也应该先收集用户反馈，而不是拍脑袋加。
+
+**b. CI 每周拉官方模板跑基准 —— 做，但升级为 v0.2 的头号任务**
+
+这是整个草案里**最高杠杆**的一条，但草案把它排在 a 之后、当成"顺带做"。
+
+- 应该做成：`benchmark` 子命令 + 一个独立的 GitHub Actions workflow，每周 + 每次 release 跑。
+- 输出应该是机器可读的（JSON），CI 里断言"误报数 == 0"。
+- README 上放 badge + 结果表格。
+- **但要注意一个陷阱**：docxtpl 官方模板会变。如果哪天官方加了一个新标签，你的 CI 会红。所以断言应该是"误报数 == 0 且 template_error 被报出"，而不是"输出完全一致"。同时要允许一个 `known_false_positives` 白名单文件，出问题时能快速 pin。
+
+**c. 浏览器 Playground（Pyodide）—— 降级，别在 v0.2 做**
+
+- 技术上可行，但**成本被严重低估**：lxml 在 Pyodide 里能装，但 wheel 体积大、首次加载慢（几十 MB），用户体验差；docxtpl 本身依赖 python-docx，链式依赖在 Pyodide 里踩坑概率高。
+- 更关键的是：**你现在 0 star，没有用户，Playground 是给"已经有流量"的项目做转化用的，不是用来获客的。** 没人会因为一个 Playground 发现你的项目。
+- 建议：v0.2 先不做。等有 50+ star、有人提 issue 说"想在线试"再做。或者做一个更轻的替代：**一个静态 HTML 页面，展示"输入模板片段 → 输出报告"的示例**，零依赖，5 分钟能做完。
+
+**d. vhs GIF vs 静态 SVG —— 做，但优先级低于 b**
+
+- 静态 SVG 的问题是"看不出这是工具在跑"。GIF/视频对 README 转化率确实有提升。
+- 但 vhs 录 GIF 有个坑：终端字体、配色、时长都要调，容易做成"自嗨 demo"。**建议先做一个 15 秒的 GIF，展示"拖入 docx → 出报告 → 定位到错误行"这一个核心流程**，别贪多。
+- 优先级：低于 b，高于 c/e。
+
+**e. mkdocs 文档站 —— 降级**
+
+- 你现在 README 就够用。文档站是给"功能多到 README 放不下"的项目做的。
+- v0.2 的正确做法是：**把 README 写扎实**（安装、用法、检查项列表、基准结果、已知限制），而不是搭一个空壳文档站。
+- 等检查项超过 15 条、或者有多个子命令时再上 mkdocs。
+
+**f. Action 升级到 Node24（checkout@v7、setup-python@v7）—— 做，但注意**
+
+- **先确认这两个版本号是否存在。** 截至我知识截止，checkout 最新是 v4，setup-python 最新是 v5。v7 大概率是你记错了或者不存在。**不要写不存在的版本号，CI 会直接挂。**
+- 如果确实有 Node24 版本，升级是低风险高收益的（避免 deprecation warning）。但这不是 v0.2 的卖点，别写进 release notes 当亮点。
+
+**g. PyPI Trusted Publishing 工作流 —— 做，P0**
+
+- 这是**发布基础设施**，不是"增长项"。你 PyPI 还没发，这是 v0.2 的硬前提。
+- 用 `pypa/gh-action-pypi-publish` + OIDC，环境名 `pypi`，触发条件 `on: release: types: [published]`。
+- **建议 v0.2 就正式发 PyPI**，别只"准备好不触发"。0 star 的项目，PyPI 上的存在感比 GitHub 更重要——很多人是 `pip install` 搜到的。
+
+**h. pyproject 配置文件 —— 做，但砍掉一半选项**
+
+- `select` / `ignore`：**做**，这是 linter 的标配，用户会要。
+- `data`（模板变量数据）：**不做**。这会让 linter 变成"模板渲染器"，职责膨胀。用户要验证变量，应该用 docxtpl 自己渲染一遍。
+- `allow-cross-paragraph`：**做**，因为 v0.1 已经有 CLI flag，配置文件里对应上是一致性要求。
+- 原则：**配置文件只放"检查行为"相关的，不放"渲染行为"相关的。**
+
+**i. --context N —— 做，P1 里性价比最高的一条**
+
+- 这是真正解决用户痛点的功能：报错说"第 3 段有语法错误"，用户还得打开 Word 找。给出上下文直接定位。
+- 实现简单（python-docx 读段落文本），风险低。
+- **建议默认开启 N=2**，而不是让用户手动加 flag。默认体验好才是增长。
+
+**j. --fix-safe —— 同意不做，但理由要更硬**
+
+- 你的理由（只读承诺、run 拆分）都对，但**最硬的理由是：自动修复会掩盖 bug**。用户跑了 `--fix-safe`，以为修好了，结果模板里还有别的错，最后怪你的工具。
+- 如果将来要做，应该是 `--fix-suggest`（输出 diff，不写文件），而不是 `--fix-safe`。
+
+**k. 跨段落开关 —— 已经是 v0.1 功能，v0.2 只需在配置文件里对应上（见 h）**
+
+**l. VS Code 扩展 —— 不做，理由你说对了一半**
+
+- 你说"docx 是二进制看不了"——对，但更根本的问题是：**VS Code 扩展的维护成本极高**（要跟 VS Code API 版本、要发 marketplace、要处理各种 edge case），而你的用户量根本撑不起。
+- 如果真要做，应该是"右键 docx → 运行 lint → 在 Problems 面板显示结果"，而不是"在编辑器里看 docx"。但这是 v1.0 之后的事。
+
+---
+
+## 遗漏的高杠杆项
+
+1. **PyPI 正式发布 + 版本号策略**。草案 g 说"准备好但不触发"，这是错的。0 star 项目最需要的是"能被 pip install 到"。v0.2 应该正式发 PyPI，并且想清楚版本号（0.2.0 还是 0.1.1）。
+
+2. **错误信息质量**。你只说了"修误报"，但没说"改错误信息"。v0.1 的错误信息长什么样？有没有给出"文件 → 段落 → 字符位置 → 建议"？这比加新检查项重要得多。**建议 v0.2 把每条 DTL 错误信息都过一遍，确保包含：位置、原因、修复建议。**
+
+3. **退出码语义**。CI 用户最关心的是 `exit 0/1/2` 分别代表什么。有没有 `--strict` 模式？有没有 `--format json`？这些是"能不能进 CI"的关键，比 Playground 重要 100 倍。
+
+4. **一个真实的"用户故事"**。README 现在大概率是"功能列表"。应该改成"我有一个 docxtpl 模板，跑了一下，发现了 X 问题，修好了"。**这是 0 star 项目最缺的东西。**
+
+5. **issue 模板 + CONTRIBUTING**。如果有人提"误报"，你希望他提供什么？模板文件、docxtpl 版本、你的工具版本。没有这个，你收到的 issue 都是"它报错了"。
+
+6. **和 docxtpl 上游的关系**。你有没有在 docxtpl 的 issue/discussion 里提过这个工具？有没有可能被 docxtpl README 链接？**这是 0 star 项目最现实的获客渠道**，比 Playground 有效得多。
+
+---
+
+## 风险
+
+1. **误报是这类工具的头号杀手**。你已经有 7 条误报，说明"猜 docxtpl 语义"这条路很危险。v0.2 的每一条新检查都要问：**有没有真实样本证明用户会犯这个错？** 没有就不加。
+
+2. **基准测试的脆弱性**。官方模板会变，你的 CI 会红。要有 pin 机制和白名单。
+
+3. **Pyodide 的隐藏成本**。如果 c 做了，你会发现 80% 的时间花在"为什么 lxml 在这个版本装不上"，而不是"Playground 好不好用"。
+
+4. **配置文件格式的兼容性**。一旦发了 `[tool.docxtpl-lint]`，改字段名就是 breaking change。v0.2 定字段时要保守，宁可少放几个。
+
+5. **"只读"承诺**。j 不做是对的，但要在 README 里**明确写出来**："本工具只读，不会修改你的文件。" 这是信任基础。
+
+6. **版本号跳跃**。v0.1.0 → v0.2.0 意味着"有 breaking change 或新功能"。如果你只是修 bug + 加配置，其实应该是 v0.1.1。**别为了显得"有进展"而跳版本号**，用户会困惑。
+
+---
+
+## 建议的 v0.2 范围（重排后）
+
+**必做**：
+- a（只做智能引号 + 白名单，砍 DTL208）
+- b（基准测试，升级为头号任务）
+- g（PyPI 正式发布，不是"准备好"）
+- h（配置文件，砍掉 data）
+- i（--context，默认开启）
+- 错误信息质量 + 退出码 + JSON 输出（草案遗漏）
+- README 重写（用户故事 + 基准结果 + 已知限制）
+
+**可做**：
+- d（GIF，15 秒，一个流程）
+- f（确认版本号存在再升）
+
+**不做**：
+- c（Playground）
+- e（mkdocs）
+- j（--fix-safe）
+- l（VS Code 扩展）
+
+**v0.3 再考虑**：
+- DTL208
+- Playground
+- mkdocs
+
+一句话：**v0.2 的目标应该是"让第一个真实用户能顺利装上、跑通、看懂报告、提 issue"，而不是"看起来功能很多"。**
+
+
+## 第 6 轮：我的反驳（提示词）
+
+````
+你上一轮评审了 docxtpl-lint 的 v0.2 计划。下面是我核实之后的决定。请用中文逐条回应：同意，或给出能验证的反驳。要简短。
+1. DTL208：你建议砍掉。我保留。理由：已用 docxtpl 0.20.2 实测，在普通段落里写 {% cellbg 'FF0000' %} 确实会抛 TemplateSyntaxError（unknown tag）；规则是纯结构判断，基准测试的 40 个模板里误报为 0。
+2. Playground：你说 lxml 有几十 MB、链式依赖会踩坑。实测：Pyodide 314.0.7 自带 lxml 6.1.3 的 wheel，只有 2.1 MB；我们不依赖 docxtpl，也不依赖 python-docx，micropip 用 deps=False 安装。Node 冒烟测试 3 秒内跑完，Playwright 里真实浏览器也跑通了，中英文都正常。所以做，并在 CI 里加了 pyodide 冒烟测试。你说的“0 star 时它不能获客”我同意一半：它是给发帖、README 做转化用的，成本只有一个静态 HTML。
+3. 你说 checkout@v7 / setup-python@v7 不存在：已用 GitHub API 核实，最新版本分别是 v7.0.1 和 v7.0.0，action.yml 里写的都是 using: node24。你说错了。
+4. 关于 PyPI 正式发布：用户要求发布前必须由他确认，所以只准备好工作流，做成 workflow_dispatch 手动触发，不会在发 release 时自动发布。
+5. 配置文件：你建议不放 data。我放了。--data 只做存在性检查，不渲染，CLI 本来就有这个选项；配置文件里路径相对 pyproject.toml。遇到未知键直接报错退出（exit 2），这条采纳了你的建议。
+6. --context：你建议默认 N=2。我改成在终端里默认 1、非终端（CI 日志、管道）默认 0，避免 CI 日志刷屏。
+7. 版本号：你说应该是 0.1.1。新功能有配置文件、--context、DTL208、Playground，按 semver 算 minor，所以是 0.2.0。
+8. 退出码、JSON、issue 模板、CONTRIBUTING、只读声明：v0.1 已经都有了（你不知道这些）。新增的是：每条规则的 help_url，以及 docs/rules.md（每条都有错例、修法和 docxtpl 实际行为）。
+9. 基准测试：已经做成 scripts/benchmark.py 和 benchmark/expected.json（包含 must_report 和 known_false_positives 白名单），并加进 CI。v0.1.0 在 40 个官方模板上有 7 条误报，v0.2 是 0 条，template_error 那个故意写错的模板仍然能报出。
+10. GIF：不用 vhs。README 改为放 Playground 截图，加上可以重新生成的 SVG。mkdocs、VS Code 扩展、--fix-safe 都不做，同意你的意见。
+11. 去上游推广：属于对外发言，需要用户确认，已列入待办。
+还有什么我漏掉、而且现在就该改的吗？
+
+````
+
+### DeepSeek 回复（原文）
+
+逐条回应：
+
+1. **同意保留 DTL208。** 你的实测（docxtpl 0.20.2 抛 unknown tag）+ 40 模板 0 误报，比我的"结构判断可能误报"猜测更硬。撤回建议。
+
+2. **同意做 Playground。** 2.1 MB wheel + deps=False + 真实浏览器跑通，成本论证成立。我原判断基于"lxml 通常几十 MB"的旧印象，被实测推翻。撤回。
+
+3. **你对，我错。** checkout v7.0.1 / setup-python v7.0.0 存在，node24。我上一轮说"不存在"是错的，道歉。
+
+4. **同意。** workflow_dispatch 手动触发 + 用户确认门禁，正确。
+
+5. **同意放 data。** 只做存在性检查、不渲染、未知键 exit 2，风险可控。撤回"不放 data"。
+
+6. **同意你的方案，比我的好。** isatty 分流（终端 1 / 非终端 0）比统一 N=2 更贴合 CI 场景。
+
+7. **同意 0.2.0。** 配置文件 + --context + DTL208 + Playground 是 feature，minor 正确。我按"修 bug"算 0.1.1 是错的。
+
+8. **收到，无异议。** help_url + docs/rules.md 是合理增量。
+
+9. **同意，且这是最有价值的一条。** 7→0 误报 + 故意错模板仍能报，说明 benchmark 有区分度，不是自证。
+
+10. **同意。**
+
+11. **同意。**
+
+---
+
+**你漏掉、现在就该改的：**
+
+- **DTL208 的 help_url 要指向 docxtpl 版本边界。** 你实测的是 0.20.2。如果用户装 0.19.x，`cellbg` 行为可能不同。docs/rules.md 里应写明"基于 docxtpl ≥0.20.2 实测"，否则规则会随上游漂移而变成误报源。
+
+- **benchmark 的 known_false_positives 白名单要有过期机制。** 白名单是"当前容忍的误报"，不是"永久豁免"。建议每条白名单项带 `expires_version` 或 CI 里断言"白名单条目数不增长"，否则半年后没人敢删。
+
+- **Playground 的 pyodide 版本要 pin。** 你写 314.0.7 自带 lxml 6.1.3。pyodide 升级会换 lxml 版本，DTL 规则若依赖 lxml 解析行为，Playground 结果会和 CLI 漂移。CI 冒烟测试要断言"Playground 对固定模板的输出 == CLI 输出"。
+
+- **配置文件相对 pyproject.toml 解析，但 CLI 直接跑时没有 pyproject.toml。** 需要明确：无 pyproject.toml 时相对 CWD 还是报错？这条现在没定义，会出 bug。
+
+- **--context 非终端默认 0，但 `--context` 显式传 0 和"未传"要能区分。** 用 argparse 的 `default=None` + 运行时判断 isatty，别用 `default=0`，否则用户想强制 0 也做不到。
+
+其余没意见。
+
+
+### v0.2 委托给 DeepSeek 的任务
+- docs/rules.md：DeepSeek 起草，我修了 `{open}` 占位符没替换的问题、DTL204/206/208/301/302 的示例，以及 DTL202 漏掉的 p/r 前缀
+- README.zh.md：DeepSeek 重新翻译，我核对了链接和代码块，原样采用

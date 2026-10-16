@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>docxtpl-lint playground</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ctext y=%2213%22 font-size=%2213%22%3E%E2%9C%94%3C/text%3E%3C/svg%3E">
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1f2328; }
+  h1 { margin-bottom: .2rem; } .sub { color: #59636e; margin-top: 0; }
+  #drop { border: 2px dashed #8c959f; border-radius: 10px; padding: 2rem; text-align: center; cursor: pointer; }
+  #drop.over { background: #f0f6ff; border-color: #0969da; }
+  pre { background: #0d1117; color: #e6edf3; padding: 1rem; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; min-height: 6rem; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin: 1rem 0; }
+  button, select { font: inherit; padding: .3rem .7rem; }
+  .err { color: #ff7b72; } .warn { color: #d29922; } .dim { color: #8b949e; } .ok { color: #3fb950; }
+  footer { color: #59636e; font-size: 13px; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<h1>docxtpl-lint playground</h1>
+<p class="sub">Lint a <a href="https://github.com/elapouya/python-docx-template">docxtpl</a> Word template in your browser.
+The file never leaves your computer: the linter runs locally via <a href="https://pyodide.org">Pyodide</a>.
+· <a href="https://github.com/yq6666-66/docxtpl-lint">GitHub</a></p>
+
+<div id="drop">Drop a <b>.docx</b> template here or click to choose<input id="file" type="file" accept=".docx" hidden></div>
+<div class="row">
+  <span>Examples:</span>
+  <button data-ex="issue378_unclosed.docx">#378 unclosed if</button>
+  <button data-ex="issue603_table_loop.docx">#603 table loops</button>
+  <button data-ex="issue644_percent.docx">#644 % in {%p %}</button>
+  <button data-ex="clean.docx">clean</button>
+  <label>Language <select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label>
+</div>
+<pre id="out"><span class="dim">Loading Python (first visit ~10 MB, then cached)…</span></pre>
+<footer>Not affiliated with python-docx-template. Same rules as <code>pip install docxtpl-lint</code>; data checks (<code>--data</code>) are CLI-only.</footer>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
+<script>
+const out = document.getElementById("out");
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+let lastName = null, lastBytes = null;
+
+const ready = (async () => {
+  const py = await loadPyodide();
+  await py.loadPackage(["micropip", "lxml", "jinja2"]);
+  const { wheel } = await (await fetch("wheel.json")).json();
+  py.FS.writeFile("/tmp/" + wheel, new Uint8Array(await (await fetch(wheel)).arrayBuffer()));
+  await py.runPythonAsync(`
+import micropip
+await micropip.install("emfs:/tmp/${wheel}", deps=False)
+from docxtpl_lint import lint_path, __version__
+from docxtpl_lint.cli import render_text
+def run(path, name, lang):
+    rep = lint_path(path)
+    rep.file = name
+    return render_text([rep], color=False, lang=lang, context=1)
+`);
+  out.innerHTML = '<span class="ok">Ready</span> <span class="dim">docxtpl-lint ' + py.globals.get("__version__") + "</span>";
+  return py;
+})().catch((e) => { out.innerHTML = '<span class="err">Failed to load: ' + esc(String(e)) + "</span>"; throw e; });
+
+async function lint(name, bytes) {
+  lastName = name; lastBytes = bytes;
+  out.innerHTML = '<span class="dim">Linting ' + esc(name) + "…</span>";
+  const py = await ready;
+  py.FS.writeFile("/tmp/in.docx", bytes);
+  try {
+    const text = py.globals.get("run")("/tmp/in.docx", name, document.getElementById("lang").value);
+    out.innerHTML = esc(text)
+      .replace(/ (error) (DTL\d+)/g, ' <span class="err">$1 <b>$2</b></span>')
+      .replace(/ (warning) (DTL\d+)/g, ' <span class="warn">$1 <b>$2</b></span>')
+      .replace(/^(✔.*)$/m, '<span class="ok">$1</span>');
+  } catch (e) {
+    out.innerHTML = '<span class="err">' + esc(String(e).split("\n").slice(-2).join("\n")) + "</span>";
+  }
+}
+
+const drop = document.getElementById("drop"), input = document.getElementById("file");
+drop.onclick = () => input.click();
+input.onchange = async () => { const f = input.files[0]; if (f) lint(f.name, new Uint8Array(await f.arrayBuffer())); };
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = async (e) => {
+  e.preventDefault(); drop.classList.remove("over");
+  const f = e.dataTransfer.files[0]; if (f) lint(f.name, new Uint8Array(await f.arrayBuffer()));
+};
+document.querySelectorAll("[data-ex]").forEach((b) => b.onclick = async () => {
+  const name = b.dataset.ex;
+  lint(name, new Uint8Array(await (await fetch("examples/" + name)).arrayBuffer()));
+});
+document.getElementById("lang").onchange = () => { if (lastBytes) lint(lastName, lastBytes); };
+</script>
+</body>
+</html>

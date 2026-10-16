@@ -16,32 +16,58 @@ jobs:
           - os: windows-latest
             python: "3.12"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - run: pip install -e ".[dev]"
       - run: ruff check . && ruff format --check .
       - run: pytest -q
   docxtpl-upstream:
-    # Ground-truth tests against the newest docxtpl release and upstream master.
+    # Ground truth against the newest docxtpl release and upstream master.
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       matrix:
         docxtpl: ["docxtpl", "git+https://github.com/elapouya/python-docx-template.git"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]" && pip install --upgrade "${{ matrix.docxtpl }}"
       - run: pytest -q tests/test_docxtpl_behaviour.py
+  benchmark:
+    # 0 false positives on python-docx-template's own test templates (benchmark/expected.json).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: git clone --depth 1 https://github.com/elapouya/python-docx-template /tmp/docxtpl
+      - run: python scripts/benchmark.py /tmp/docxtpl/tests/templates --json benchmark-result.json
+      - run: cat benchmark-result.json >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+  playground:
+    # The wheel must keep working inside Pyodide (browser playground).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: pip install build && python -m build --wheel && pip install dist/*.whl && bash scripts/build_site.sh
+      - run: npm install --no-save pyodide@314.0.7 && node scripts/pyodide_smoke.mjs _site
   action:
     # Dogfood the composite action on the bundled examples (path with a space included).
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: mkdir -p "tmp dir" && cp examples/clean.docx "tmp dir/clean copy.docx"
       - uses: ./
         with:
@@ -51,8 +77,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install build twine && python -m build && twine check dist/*

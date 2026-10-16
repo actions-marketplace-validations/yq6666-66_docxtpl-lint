@@ -108,6 +108,20 @@ CASES = [
     # Jinja features docxtpl's default Environment does NOT enable
     Case("do_ext", lambda d: d.add_paragraph("{% set l = [] %}{% do l.append(1) %}{{ l }}"), ["DTL103"], "raises"),
     Case("break_ext", lambda d: d.add_paragraph("{% for i in xs %}{% break %}{% endfor %}"), ["DTL103"], "raises"),
+    # DTL208: docxtpl cell tags (found by the docxtpl test-template benchmark)
+    Case("dtl208_bad", lambda d: d.add_paragraph("{% cellbg 'FF0000' %}red"), ["DTL208"], "raises"),
+    Case(
+        "cell_tags_ok",
+        lambda d: _table(d, 1, 2, {(0, 0): "{% cellbg 'FF0000' %}a", (0, 1): "{% colspan 1 %}b"}),
+        [],
+        "ok",
+    ),
+    Case(
+        "smart_quotes_ok",
+        lambda d: d.add_paragraph("{{ v | default(\u2018x\u2019) }}{% if \u201cx\u201d %}y{% endif %}"),
+        [],
+        "ok",
+    ),
     # false-positive guards
     Case("raw_ok", lambda d: d.add_paragraph("{% raw %}{% if x %}{% endraw %}"), [], "ok"),
     Case("set_block_ok", lambda d: d.add_paragraph("{% set y %}hi{% endset %}{{ y }}"), [], "ok"),

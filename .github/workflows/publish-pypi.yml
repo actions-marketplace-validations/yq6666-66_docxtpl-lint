@@ -1,0 +1,45 @@
+name: Publish to PyPI
+# PyPI Trusted Publishing (OIDC, no token stored in GitHub).
+# Prepared but deliberately manual: it only runs when started from the Actions
+# tab ("Run workflow") with the tag to publish. One-time setup on pypi.org:
+#   Publishing → Add a pending publisher → owner yq6666-66, repo docxtpl-lint,
+#   workflow publish-pypi.yml, environment pypi.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to publish, e.g. v0.2.0
+        required: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install build twine && python -m build && twine check dist/*
+      - name: Version must match tag
+        run: |
+          v=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$v" = "${{ inputs.tag }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/docxtpl-lint/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@v1.14.2

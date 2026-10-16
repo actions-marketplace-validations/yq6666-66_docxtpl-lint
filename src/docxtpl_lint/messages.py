@@ -114,6 +114,13 @@ _RULES = [
         "`{open_raw}` 和 `{close_raw}` 不在同一行或同一张表；docxtpl 生成的表格结构会错乱",
     ),
     Rule(
+        "DTL208",
+        "error",
+        "cellbg/colspan/vm/hm tag outside a table cell",
+        "`{raw}` only works inside a table cell; docxtpl leaves it to Jinja, which fails with 'unknown tag'",
+        "`{raw}` 只能写在表格单元格里；放在别处时 docxtpl 不会处理它，Jinja 会报 unknown tag",
+    ),
+    Rule(
         "DTL301",
         "error",
         "variable missing from --data",
@@ -137,6 +144,12 @@ _RULES = [
 ]
 
 RULES: dict[str, Rule] = {r.id: r for r in _RULES}
+
+DOCS_URL = "https://github.com/yq6666-66/docxtpl-lint/blob/main/docs/rules.md"
+
+
+def help_url(rule_id: str) -> str:
+    return f"{DOCS_URL}#{rule_id.lower()}"
 
 
 def render(rule_id: str, params: dict[str, object], lang: str = "en") -> str:

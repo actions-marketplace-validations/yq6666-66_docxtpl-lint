@@ -29,7 +29,7 @@ def main() -> None:
     os.chdir(ROOT)
     reports = [lint_path(f"examples/{f}") for f in FILES]
     for lang, name in (("en", "demo.svg"), ("zh", "demo-zh.svg")):
-        out = render_text(reports, color=True, lang=lang)
+        out = render_text(reports, color=True, lang=lang, context=1)
         cmd = "$ docxtpl-lint examples/*.docx" + (" --lang zh" if lang == "zh" else "")
         console = Console(record=True, width=170, file=open(os.devnull, "w"))  # noqa: SIM115
         console.print(Text(cmd, style="bold green"))

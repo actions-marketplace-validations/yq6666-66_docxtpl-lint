@@ -1,0 +1,7 @@
+{
+  "_comment": "Expected docxtpl-lint findings on python-docx-template's own tests/templates/*.docx. Everything not listed must be clean (0 false positives).",
+  "must_report": {
+    "template_error_tpl.docx": ["DTL102"]
+  },
+  "known_false_positives": {}
+}

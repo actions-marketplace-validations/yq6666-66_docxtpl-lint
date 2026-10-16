@@ -5,6 +5,9 @@
 **A static linter for [docxtpl](https://github.com/elapouya/python-docx-template) (python-docx-template) Word templates.
 It points each problem to the exact table cell, reports all problems in one run, and returns exit codes your CI can use.**
 
+**[▶ Try it in your browser](https://yq6666-66.github.io/docxtpl-lint/)**: drop a `.docx` and see the report. The file never
+leaves your computer; the linter runs locally via Pyodide.
+
 ![docxtpl-lint output](https://raw.githubusercontent.com/yq6666-66/docxtpl-lint/main/docs/demo.svg)
 
 docxtpl itself only gives you this, with no location and only the first error:
@@ -13,7 +16,20 @@ docxtpl itself only gives you this, with no location and only the first error:
 jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endfor'. Jinja was looking for the following tags: 'elif' or 'else' or 'endif'.
 ```
 
-> Not affiliated with python-docx-template. Tested against docxtpl 0.20.2.
+> Not affiliated with python-docx-template. Tested against docxtpl 0.20.2 and checked weekly against docxtpl's latest release and master.
+
+## Benchmark: docxtpl's own templates
+
+The 40 templates in python-docx-template's `tests/templates` are written by the docxtpl maintainers and render correctly,
+except `template_error_tpl.docx`, which is broken on purpose. CI lints all of them every week
+([`scripts/benchmark.py`](scripts/benchmark.py), [`benchmark/expected.json`](benchmark/expected.json)):
+
+| version | false positives | deliberate error found |
+|---|---|---|
+| 0.1.0 | 7 (`cellbg`/`colspan`/`vm`/`hm` tags, Word smart quotes) | yes (DTL102) |
+| 0.2.0 | **0** | yes (DTL102) |
+
+All 40 templates are linted in about 0.1 s.
 
 ## Features
 
@@ -43,6 +59,7 @@ docxtpl-lint contract.docx --data sample.json            # + data checks (repeat
 docxtpl-lint contract.docx --format json > report.json   # machine readable (schema_version: 1)
 docxtpl-lint contract.docx --list-vars                   # which data does this template need?
 docxtpl-lint contract.docx --lang zh                     # 中文提示
+docxtpl-lint contract.docx --context 2                   # show 2 paragraphs around each issue
 docxtpl-lint --list-rules
 ```
 
@@ -55,10 +72,30 @@ docxtpl-lint --list-rules
 Other options: `--select DTL1,DTL206`, `--ignore DTL2` (prefix match), `--allow-cross-paragraph`,
 `--report-unused-data`, `--warnings-as-errors`, `--no-color`.
 
+`--context N` prints the surrounding paragraphs with their table position, so you can find the spot without opening Word.
+It defaults to 1 in a terminal and 0 in CI logs and pipes.
+
+### Configuration
+
+Put defaults in the nearest `pyproject.toml`. Command-line options take precedence, and unknown keys are an error (exit 2):
+
+```toml
+[tool.docxtpl-lint]
+ignore = ["DTL002"]
+data = ["tests/sample_context.json"]  # relative to this pyproject.toml
+warnings-as-errors = true
+lang = "en"                           # or "zh"
+# also: select, allow-cross-paragraph, report-unused-data, context
+```
+
+Use `--config path/to/pyproject.toml` to pick a file, or `--no-config` to ignore it.
+
 To silence rules for one template, put a Jinja comment anywhere in it (docxtpl renders it as nothing):
 `{# docxtpl-lint: disable=DTL301,DTL002 #}`
 
 ## Rules
+
+Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SARIF output link to the matching entry.
 
 | id | severity | what | docxtpl does |
 |---|---|---|---|
@@ -74,6 +111,7 @@ To silence rules for one template, put a Jinja comment anywhere in it (docxtpl r
 | DTL205 | error | `{%tr for %}` and `{%tr endfor %}` in different tables | **silently** loses rows |
 | DTL206 | error | `{%tr for %}` and `{%tr endfor %}` in the same row | raises |
 | DTL207 | error | `{%tc for %}` and `{%tc endfor %}` in different rows | **silently** corrupts the table |
+| DTL208 | error | `{% cellbg %}` / `{% colspan %}` / `{% vm %}` / `{% hm %}` outside a table cell | raises "unknown tag" |
 | DTL301 | error | (`--data`) variable missing from every sample context | renders empty or raises |
 | DTL302 | warning | (`--report-unused-data`) top-level data key never used | n/a |
 | DTL303 | error | (`--data`) `for` over a number / boolean / null | raises at render time |

@@ -20,7 +20,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .messages import RULES, render
+from .messages import RULES, help_url, render
 from .reader import CellPos, Paragraph, iter_paragraphs
 
 # ---------------------------------------------------------------- data model
@@ -82,6 +82,7 @@ class Issue:
             "message": self.message_for(lang),
             "location": self.location.to_dict(),
             "snippet": self.snippet,
+            "help_url": help_url(self.rule),
         }
 
 
@@ -102,6 +103,16 @@ class Report:
     issues: list[Issue] = field(default_factory=list)
     variables: list[str] = field(default_factory=list)
     disabled: set[str] = field(default_factory=set)
+    # paragraph texts per part, for --context (not serialised)
+    paragraphs: dict[str, list[Paragraph]] = field(default_factory=dict, repr=False)
+
+    def context(self, loc: Location, n: int) -> list[Paragraph]:
+        """``n`` paragraphs before and after ``loc`` (same part)."""
+        paras = self.paragraphs.get(loc.part, [])
+        if n <= 0 or loc.paragraph <= 0:
+            return []
+        lo, hi = max(1, loc.paragraph - n), min(len(paras), loc.paragraph + n)
+        return paras[lo - 1 : hi]
 
 
 def _loc(file: str, p: Paragraph, col: int = 0) -> Location:
@@ -120,6 +131,10 @@ _SPACED_RE = re.compile(r"^-?\s+(tr|tc|p|r) ")
 _ENDRAW_RE = re.compile(r"\{%-?\s*endraw\s*-?%\}")
 _DISABLE_RE = re.compile(r"^\s*docxtpl-lint:\s*disable\s*=\s*([A-Z0-9_,\s]+?)\s*$")
 
+# docxtpl cell tags rewritten by patch_xml before Jinja sees the template
+CELL_TAGS = {"cellbg", "colspan", "vm", "hm"}
+# patch_xml replaces Word's smart quotes inside tags with plain ones
+_SMART_QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
 BLOCKS = {"if", "for", "with", "macro", "call", "filter", "block", "set_block", "autoescape"}
 MIDDLE = {"elif": {"if"}, "else": {"if", "for"}}
 JINJA_GLOBALS = {"range", "lipsum", "dict", "cycler", "joiner", "namespace", "loop", "caller", "varargs", "kwargs"}
@@ -188,6 +203,8 @@ def scan_tags(file: str, paras: list[Paragraph], issues: list[Issue]) -> list[Ta
                 prefix = pm.group(1)
                 inner = inner[pm.end() :]
             body = _strip_ws_control(inner)
+            if kind != "comment":
+                body = body.translate(_SMART_QUOTES)
             i = end + 2
             if kind == "stmt" and not prefix and body == "raw":
                 m_end = _ENDRAW_RE.search(t, i)
@@ -299,6 +316,8 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
             )
 
     for tg in tags:
+        if tg.kind == "stmt" and _keyword(tg) in CELL_TAGS and not tg.para.cells:
+            issues.append(Issue("DTL208", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw}))
         if tg.prefix in ("tr", "tc") and not tg.para.cells:
             issues.append(Issue("DTL203", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw, "prefix": tg.prefix}))
 
@@ -365,7 +384,13 @@ def build_jinja_source(tags: list[Tag]) -> tuple[str, list[Tag]]:
     for tg in tags:
         if tg.kind == "comment":
             continue
-        lines.append(("{% " + tg.body + " %}") if tg.kind == "stmt" else ("{{ " + tg.body + " }}"))
+        if tg.kind == "stmt" and _keyword(tg) in CELL_TAGS:
+            expr = tg.body.split(None, 1)[1] if len(tg.body.split(None, 1)) > 1 else ""
+            if not expr:
+                continue
+            lines.append("{{ " + expr + " }}")  # analyse cellbg/colspan expressions
+        else:
+            lines.append(("{% " + tg.body + " %}") if tg.kind == "stmt" else ("{{ " + tg.body + " }}"))
         kept.append(tg)
     return "\n".join(lines), kept
 
@@ -655,6 +680,8 @@ def lint_path(
     if allow_cross_paragraph:
         disabled.add("DTL002")
     rep = Report(file, [i for i in issues if i.rule not in disabled], disabled=disabled)
+    for p in paras:
+        rep.paragraphs.setdefault(p.part, []).append(p)
     rep.variables = sorted({p for p, _ in an.uses})
     return rep
 

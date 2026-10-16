@@ -12,8 +12,9 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .config import ConfigError, find_config, load_config
 from .core import Report, lint_path, load_data
-from .messages import RULES
+from .messages import RULES, help_url
 
 JSON_SCHEMA_VERSION = 1
 
@@ -24,7 +25,9 @@ def _c(name: str, text: str, enable: bool) -> str:
     return f"{_COLOR[name]}{text}{_COLOR['reset']}" if enable else text
 
 
-def render_text(reports: list[Report], color: bool = False, show_vars: bool = False, lang: str = "en") -> str:
+def render_text(
+    reports: list[Report], color: bool = False, show_vars: bool = False, lang: str = "en", context: int = 0
+) -> str:
     lines: list[str] = []
     total = {"error": 0, "warning": 0}
     for rep in reports:
@@ -37,6 +40,11 @@ def render_text(reports: list[Report], color: bool = False, show_vars: bool = Fa
             )
             if it.snippet:
                 lines.append("    " + _c("dim", it.snippet, color))
+            for para in rep.context(loc, context):
+                mark = ">" if para.index == loc.paragraph else " "
+                cell = " > ".join(f"T{c.table}R{c.row}C{c.col}" for c in para.cells)
+                text = para.text if len(para.text) <= 100 else para.text[:97] + "..."
+                lines.append(_c("dim", f"      {mark} ¶{para.index:<4}{cell:<10}| {text}", color))
         if show_vars and rep.variables:
             lines.append(f"{rep.file}: " + ("变量:" if lang == "zh" else "variables:"))
             lines.extend(f"  - {v.replace('[]', '[*]')}" for v in rep.variables)
@@ -115,7 +123,9 @@ def render_sarif(reports: list[Report], lang: str = "en") -> str:
         "name": "docxtpl-lint",
         "version": __version__,
         "informationUri": "https://github.com/yq6666-66/docxtpl-lint",
-        "rules": [{"id": r.id, "shortDescription": {"text": r.summary}} for r in RULES.values()],
+        "rules": [
+            {"id": r.id, "shortDescription": {"text": r.summary}, "helpUri": help_url(r.id)} for r in RULES.values()
+        ],
     }
     return json.dumps(
         {
@@ -149,6 +159,14 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--warnings-as-errors", action="store_true", help="exit 1 on warnings too")
     ap.add_argument("--list-vars", action="store_true", help="print the data paths each template uses")
     ap.add_argument("--list-rules", action="store_true", help="print all rules and exit")
+    ap.add_argument(
+        "--context",
+        type=int,
+        metavar="N",
+        help="show N paragraphs around each issue (text format; default: 1 in a terminal, 0 otherwise)",
+    )
+    ap.add_argument("--config", help="pyproject.toml to read [tool.docxtpl-lint] from (default: nearest one)")
+    ap.add_argument("--no-config", action="store_true", help="ignore [tool.docxtpl-lint] settings")
     ap.add_argument("--no-color", action="store_true")
     ap.add_argument("--version", action="version", version=__version__)
     return ap
@@ -156,7 +174,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     ap = build_parser()
-    args = ap.parse_args(argv)
+    pre, _ = ap.parse_known_args(argv)
+    if not pre.no_config:
+        cfg_path = Path(pre.config) if pre.config else find_config()
+        if cfg_path is not None:
+            try:
+                cfg = load_config(cfg_path)
+            except ConfigError as exc:
+                print(f"docxtpl-lint: {exc}", file=sys.stderr)
+                return 2
+            cfg_data = cfg.pop("data", None)
+            ap.set_defaults(**cfg)
+            args = ap.parse_args(argv)
+            if args.data is None and cfg_data:
+                args.data = cfg_data
+        else:
+            args = ap.parse_args(argv)
+    else:
+        args = ap.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         # e.g. Windows cp1252 consoles cannot print ✔ / ¶ / Chinese messages
         if hasattr(stream, "reconfigure"):
@@ -214,7 +249,8 @@ def main(argv: list[str] | None = None) -> int:
         print(render_sarif(reports, args.lang))
     else:
         color = not args.no_color and sys.stdout.isatty()
-        print(render_text(reports, color, args.list_vars, args.lang))
+        context = args.context if args.context is not None else (1 if sys.stdout.isatty() else 0)
+        print(render_text(reports, color, args.list_vars, args.lang, context))
 
     bad = {"error", "warning"} if args.warnings_as_errors else {"error"}
     return 1 if any(i.severity in bad for r in reports for i in r.issues) else 0

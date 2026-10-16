@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 994 830.8" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 994 1343.1999999999998" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -19,168 +19,252 @@
         font-weight: 700;
     }
 
-    .terminal-2281222810-matrix {
+    .terminal-1851441046-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-2281222810-title {
+    .terminal-1851441046-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-2281222810-r1 { fill: #98a84b;font-weight: bold }
-.terminal-2281222810-r2 { fill: #c5c8c6 }
-.terminal-2281222810-r3 { fill: #c5c8c6;font-weight: bold }
-.terminal-2281222810-r4 { fill: #cc555a }
-.terminal-2281222810-r5 { fill: #868887 }
-.terminal-2281222810-r6 { fill: #d0b344 }
+    .terminal-1851441046-r1 { fill: #98a84b;font-weight: bold }
+.terminal-1851441046-r2 { fill: #c5c8c6 }
+.terminal-1851441046-r3 { fill: #c5c8c6;font-weight: bold }
+.terminal-1851441046-r4 { fill: #cc555a }
+.terminal-1851441046-r5 { fill: #868887 }
+.terminal-1851441046-r6 { fill: #d0b344 }
     </style>
 
     <defs>
-    <clipPath id="terminal-2281222810-clip-terminal">
-      <rect x="0" y="0" width="975.0" height="779.8" />
+    <clipPath id="terminal-1851441046-clip-terminal">
+      <rect x="0" y="0" width="975.0" height="1292.1999999999998" />
     </clipPath>
-    <clipPath id="terminal-2281222810-line-0">
+    <clipPath id="terminal-1851441046-line-0">
     <rect x="0" y="1.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-1">
+<clipPath id="terminal-1851441046-line-1">
     <rect x="0" y="25.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-2">
+<clipPath id="terminal-1851441046-line-2">
     <rect x="0" y="50.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-3">
+<clipPath id="terminal-1851441046-line-3">
     <rect x="0" y="74.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-4">
+<clipPath id="terminal-1851441046-line-4">
     <rect x="0" y="99.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-5">
+<clipPath id="terminal-1851441046-line-5">
     <rect x="0" y="123.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-6">
+<clipPath id="terminal-1851441046-line-6">
     <rect x="0" y="147.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-7">
+<clipPath id="terminal-1851441046-line-7">
     <rect x="0" y="172.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-8">
+<clipPath id="terminal-1851441046-line-8">
     <rect x="0" y="196.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-9">
+<clipPath id="terminal-1851441046-line-9">
     <rect x="0" y="221.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-10">
+<clipPath id="terminal-1851441046-line-10">
     <rect x="0" y="245.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-11">
+<clipPath id="terminal-1851441046-line-11">
     <rect x="0" y="269.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-12">
+<clipPath id="terminal-1851441046-line-12">
     <rect x="0" y="294.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-13">
+<clipPath id="terminal-1851441046-line-13">
     <rect x="0" y="318.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-14">
+<clipPath id="terminal-1851441046-line-14">
     <rect x="0" y="343.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-15">
+<clipPath id="terminal-1851441046-line-15">
     <rect x="0" y="367.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-16">
+<clipPath id="terminal-1851441046-line-16">
     <rect x="0" y="391.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-17">
+<clipPath id="terminal-1851441046-line-17">
     <rect x="0" y="416.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-18">
+<clipPath id="terminal-1851441046-line-18">
     <rect x="0" y="440.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-19">
+<clipPath id="terminal-1851441046-line-19">
     <rect x="0" y="465.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-20">
+<clipPath id="terminal-1851441046-line-20">
     <rect x="0" y="489.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-21">
+<clipPath id="terminal-1851441046-line-21">
     <rect x="0" y="513.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-22">
+<clipPath id="terminal-1851441046-line-22">
     <rect x="0" y="538.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-23">
+<clipPath id="terminal-1851441046-line-23">
     <rect x="0" y="562.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-24">
+<clipPath id="terminal-1851441046-line-24">
     <rect x="0" y="587.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-25">
+<clipPath id="terminal-1851441046-line-25">
     <rect x="0" y="611.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-26">
+<clipPath id="terminal-1851441046-line-26">
     <rect x="0" y="635.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-27">
+<clipPath id="terminal-1851441046-line-27">
     <rect x="0" y="660.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-28">
+<clipPath id="terminal-1851441046-line-28">
     <rect x="0" y="684.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-29">
+<clipPath id="terminal-1851441046-line-29">
     <rect x="0" y="709.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2281222810-line-30">
+<clipPath id="terminal-1851441046-line-30">
     <rect x="0" y="733.5" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-31">
+    <rect x="0" y="757.9" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-32">
+    <rect x="0" y="782.3" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-33">
+    <rect x="0" y="806.7" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-34">
+    <rect x="0" y="831.1" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-35">
+    <rect x="0" y="855.5" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-36">
+    <rect x="0" y="879.9" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-37">
+    <rect x="0" y="904.3" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-38">
+    <rect x="0" y="928.7" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-39">
+    <rect x="0" y="953.1" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-40">
+    <rect x="0" y="977.5" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-41">
+    <rect x="0" y="1001.9" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-42">
+    <rect x="0" y="1026.3" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-43">
+    <rect x="0" y="1050.7" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-44">
+    <rect x="0" y="1075.1" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-45">
+    <rect x="0" y="1099.5" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-46">
+    <rect x="0" y="1123.9" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-47">
+    <rect x="0" y="1148.3" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-48">
+    <rect x="0" y="1172.7" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-49">
+    <rect x="0" y="1197.1" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-50">
+    <rect x="0" y="1221.5" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1851441046-line-51">
+    <rect x="0" y="1245.9" width="976" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="992" height="828.8" rx="8"/><text class="terminal-2281222810-title" fill="#c5c8c6" text-anchor="middle" x="496" y="27">docxtpl-lint</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="992" height="1341.2" rx="8"/><text class="terminal-1851441046-title" fill="#c5c8c6" text-anchor="middle" x="496" y="27">docxtpl-lint</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-2281222810-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1851441046-clip-terminal)">
     
-    <g class="terminal-2281222810-matrix">
-    <text class="terminal-2281222810-r1" x="0" y="20" textLength="488" clip-path="url(#terminal-2281222810-line-0)">$&#160;docxtpl-lint&#160;examples/*.docx&#160;--lang&#160;zh</text><text class="terminal-2281222810-r2" x="976" y="20" textLength="12.2" clip-path="url(#terminal-2281222810-line-0)">
-</text><text class="terminal-2281222810-r3" x="0" y="44.4" textLength="378.2" clip-path="url(#terminal-2281222810-line-1)">examples/issue378_unclosed.docx</text><text class="terminal-2281222810-r2" x="378.2" y="44.4" textLength="317.2" clip-path="url(#terminal-2281222810-line-1)">:body&#160;¶7&#160;[表2&#160;行3&#160;列1&#160;¶1]:1:&#160;</text><text class="terminal-2281222810-r4" x="732" y="44.4" textLength="61" clip-path="url(#terminal-2281222810-line-1)">error</text><text class="terminal-2281222810-r3" x="805.2" y="44.4" textLength="73.2" clip-path="url(#terminal-2281222810-line-1)">DTL101</text><text class="terminal-2281222810-r2" x="878.4" y="44.4" textLength="97.6" clip-path="url(#terminal-2281222810-line-1)">&#160;`{%&#160;if&#160;</text><text class="terminal-2281222810-r2" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-1)">
-</text><text class="terminal-2281222810-r2" x="0" y="68.8" textLength="305" clip-path="url(#terminal-2281222810-line-2)">%}`&#160;没有闭合，缺少&#160;`{%&#160;endif&#160;%}`</text><text class="terminal-2281222810-r2" x="976" y="68.8" textLength="12.2" clip-path="url(#terminal-2281222810-line-2)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="93.2" textLength="158.6" clip-path="url(#terminal-2281222810-line-3)">{%&#160;if&#160;paid&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="93.2" textLength="12.2" clip-path="url(#terminal-2281222810-line-3)">
-</text><text class="terminal-2281222810-r3" x="0" y="117.6" textLength="378.2" clip-path="url(#terminal-2281222810-line-4)">examples/issue378_unclosed.docx</text><text class="terminal-2281222810-r2" x="378.2" y="117.6" textLength="158.6" clip-path="url(#terminal-2281222810-line-4)">:body&#160;¶9:10:&#160;</text><text class="terminal-2281222810-r6" x="536.8" y="117.6" textLength="85.4" clip-path="url(#terminal-2281222810-line-4)">warning</text><text class="terminal-2281222810-r3" x="634.4" y="117.6" textLength="73.2" clip-path="url(#terminal-2281222810-line-4)">DTL002</text><text class="terminal-2281222810-r2" x="707.6" y="117.6" textLength="170.8" clip-path="url(#terminal-2281222810-line-4)">&#160;`{{`&#160;直到第&#160;¶10&#160;</text><text class="terminal-2281222810-r2" x="976" y="117.6" textLength="12.2" clip-path="url(#terminal-2281222810-line-4)">
-</text><text class="terminal-2281222810-r2" x="0" y="142" textLength="500.2" clip-path="url(#terminal-2281222810-line-5)">段才闭合；docxtpl&#160;会把这几段合并成一段，段落格式丢失（如属有意为之，可加&#160;</text><text class="terminal-2281222810-r2" x="976" y="142" textLength="12.2" clip-path="url(#terminal-2281222810-line-5)">
-</text><text class="terminal-2281222810-r2" x="0" y="166.4" textLength="292.8" clip-path="url(#terminal-2281222810-line-6)">--allow-cross-paragraph）</text><text class="terminal-2281222810-r2" x="976" y="166.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-6)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="190.8" textLength="219.6" clip-path="url(#terminal-2281222810-line-7)">{{&#160;client.email&#160;}}</text><text class="terminal-2281222810-r2" x="976" y="190.8" textLength="12.2" clip-path="url(#terminal-2281222810-line-7)">
-</text><text class="terminal-2281222810-r3" x="0" y="215.2" textLength="378.2" clip-path="url(#terminal-2281222810-line-8)">examples/issue378_unclosed.docx</text><text class="terminal-2281222810-r2" x="378.2" y="215.2" textLength="158.6" clip-path="url(#terminal-2281222810-line-8)">:body&#160;¶11:1:&#160;</text><text class="terminal-2281222810-r4" x="536.8" y="215.2" textLength="61" clip-path="url(#terminal-2281222810-line-8)">error</text><text class="terminal-2281222810-r3" x="610" y="215.2" textLength="73.2" clip-path="url(#terminal-2281222810-line-8)">DTL102</text><text class="terminal-2281222810-r2" x="683.2" y="215.2" textLength="195.2" clip-path="url(#terminal-2281222810-line-8)">&#160;`{%&#160;endfor&#160;%}`&#160;</text><text class="terminal-2281222810-r2" x="976" y="215.2" textLength="12.2" clip-path="url(#terminal-2281222810-line-8)">
-</text><text class="terminal-2281222810-r2" x="0" y="239.6" textLength="122" clip-path="url(#terminal-2281222810-line-9)">找不到对应的开始标签</text><text class="terminal-2281222810-r2" x="976" y="239.6" textLength="12.2" clip-path="url(#terminal-2281222810-line-9)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="264" textLength="146.4" clip-path="url(#terminal-2281222810-line-10)">{%&#160;endfor&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="264" textLength="12.2" clip-path="url(#terminal-2281222810-line-10)">
-</text><text class="terminal-2281222810-r3" x="0" y="288.4" textLength="402.6" clip-path="url(#terminal-2281222810-line-11)">examples/issue603_table_loop.docx</text><text class="terminal-2281222810-r2" x="402.6" y="288.4" textLength="329.4" clip-path="url(#terminal-2281222810-line-11)">:body&#160;¶5&#160;[表1&#160;行2&#160;列2&#160;¶1]:15:&#160;</text><text class="terminal-2281222810-r4" x="768.6" y="288.4" textLength="61" clip-path="url(#terminal-2281222810-line-11)">error</text><text class="terminal-2281222810-r3" x="841.8" y="288.4" textLength="73.2" clip-path="url(#terminal-2281222810-line-11)">DTL206</text><text class="terminal-2281222810-r2" x="976" y="288.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-11)">
-</text><text class="terminal-2281222810-r2" x="0" y="312.8" textLength="780.8" clip-path="url(#terminal-2281222810-line-12)">`{%tr&#160;for&#160;line&#160;in&#160;order.lines&#160;%}`&#160;和&#160;`{%tr&#160;endfor&#160;%}`&#160;在同一行（表&#160;1&#160;行&#160;</text><text class="terminal-2281222810-r2" x="976" y="312.8" textLength="12.2" clip-path="url(#terminal-2281222810-line-12)">
-</text><text class="terminal-2281222810-r2" x="0" y="337.2" textLength="463.6" clip-path="url(#terminal-2281222810-line-13)">2）；docxtpl&#160;会用第一个标签替换整行，渲染失败。请把它们放在不同的行</text><text class="terminal-2281222810-r2" x="976" y="337.2" textLength="12.2" clip-path="url(#terminal-2281222810-line-13)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="361.6" textLength="170.8" clip-path="url(#terminal-2281222810-line-14)">{%tr&#160;endfor&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="361.6" textLength="12.2" clip-path="url(#terminal-2281222810-line-14)">
-</text><text class="terminal-2281222810-r3" x="0" y="386" textLength="402.6" clip-path="url(#terminal-2281222810-line-15)">examples/issue603_table_loop.docx</text><text class="terminal-2281222810-r2" x="402.6" y="386" textLength="317.2" clip-path="url(#terminal-2281222810-line-15)">:body&#160;¶8&#160;[表2&#160;行3&#160;列1&#160;¶1]:1:&#160;</text><text class="terminal-2281222810-r4" x="756.4" y="386" textLength="61" clip-path="url(#terminal-2281222810-line-15)">error</text><text class="terminal-2281222810-r3" x="829.6" y="386" textLength="73.2" clip-path="url(#terminal-2281222810-line-15)">DTL204</text><text class="terminal-2281222810-r2" x="902.8" y="386" textLength="73.2" clip-path="url(#terminal-2281222810-line-15)">&#160;`{%tr</text><text class="terminal-2281222810-r2" x="976" y="386" textLength="12.2" clip-path="url(#terminal-2281222810-line-15)">
-</text><text class="terminal-2281222810-r2" x="0" y="410.4" textLength="805.2" clip-path="url(#terminal-2281222810-line-16)">endfor&#160;%}`&#160;关闭的是&#160;`{%&#160;for&#160;c&#160;in&#160;order.comments&#160;%}`（body&#160;¶6&#160;[T2&#160;R1&#160;C1&#160;</text><text class="terminal-2281222810-r2" x="976" y="410.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-16)">
-</text><text class="terminal-2281222810-r2" x="0" y="434.8" textLength="536.8" clip-path="url(#terminal-2281222810-line-17)">¶1]），但两者前缀不一致（-&#160;vs&#160;tr）；docxtpl&#160;只会删掉其中一处的行/段落</text><text class="terminal-2281222810-r2" x="976" y="434.8" textLength="12.2" clip-path="url(#terminal-2281222810-line-17)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="459.2" textLength="170.8" clip-path="url(#terminal-2281222810-line-18)">{%tr&#160;endfor&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="459.2" textLength="12.2" clip-path="url(#terminal-2281222810-line-18)">
-</text><text class="terminal-2281222810-r3" x="0" y="483.6" textLength="402.6" clip-path="url(#terminal-2281222810-line-19)">examples/issue603_table_loop.docx</text><text class="terminal-2281222810-r2" x="402.6" y="483.6" textLength="317.2" clip-path="url(#terminal-2281222810-line-19)">:body&#160;¶9&#160;[表3&#160;行1&#160;列1&#160;¶1]:1:&#160;</text><text class="terminal-2281222810-r4" x="756.4" y="483.6" textLength="61" clip-path="url(#terminal-2281222810-line-19)">error</text><text class="terminal-2281222810-r3" x="829.6" y="483.6" textLength="73.2" clip-path="url(#terminal-2281222810-line-19)">DTL202</text><text class="terminal-2281222810-r2" x="976" y="483.6" textLength="12.2" clip-path="url(#terminal-2281222810-line-19)">
-</text><text class="terminal-2281222810-r2" x="0" y="508" textLength="573.4" clip-path="url(#terminal-2281222810-line-20)">应写成&#160;`{%tr&#160;…`，中间不能有空格；`{%&#160;tr&#160;…`&#160;会被当成未知的&#160;Jinja&#160;标签</text><text class="terminal-2281222810-r2" x="976" y="508" textLength="12.2" clip-path="url(#terminal-2281222810-line-20)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="532.4" textLength="353.8" clip-path="url(#terminal-2281222810-line-21)">{%&#160;tr&#160;for&#160;x&#160;in&#160;order.extra&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="532.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-21)">
-</text><text class="terminal-2281222810-r3" x="0" y="556.8" textLength="366" clip-path="url(#terminal-2281222810-line-22)">examples/issue644_percent.docx</text><text class="terminal-2281222810-r2" x="366" y="556.8" textLength="146.4" clip-path="url(#terminal-2281222810-line-22)">:body&#160;¶1:1:&#160;</text><text class="terminal-2281222810-r4" x="512.4" y="556.8" textLength="61" clip-path="url(#terminal-2281222810-line-22)">error</text><text class="terminal-2281222810-r3" x="585.6" y="556.8" textLength="73.2" clip-path="url(#terminal-2281222810-line-22)">DTL201</text><text class="terminal-2281222810-r2" x="658.8" y="556.8" textLength="207.4" clip-path="url(#terminal-2281222810-line-22)">&#160;`{%p`&#160;标签的表达式里含有&#160;</text><text class="terminal-2281222810-r2" x="976" y="556.8" textLength="12.2" clip-path="url(#terminal-2281222810-line-22)">
-</text><text class="terminal-2281222810-r2" x="0" y="581.2" textLength="805.2" clip-path="url(#terminal-2281222810-line-23)">`%`&#160;或&#160;`}`，docxtpl&#160;解析不了（python-docx-template&#160;#644）。请先用&#160;`{%&#160;set&#160;%}`&#160;</text><text class="terminal-2281222810-r2" x="976" y="581.2" textLength="12.2" clip-path="url(#terminal-2281222810-line-23)">
-</text><text class="terminal-2281222810-r2" x="0" y="605.6" textLength="61" clip-path="url(#terminal-2281222810-line-24)">算好再引用</text><text class="terminal-2281222810-r2" x="976" y="605.6" textLength="12.2" clip-path="url(#terminal-2281222810-line-24)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="630" textLength="341.6" clip-path="url(#terminal-2281222810-line-25)">{%p&#160;if&#160;row_index&#160;%&#160;2&#160;==&#160;0&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="630" textLength="12.2" clip-path="url(#terminal-2281222810-line-25)">
-</text><text class="terminal-2281222810-r3" x="0" y="654.4" textLength="366" clip-path="url(#terminal-2281222810-line-26)">examples/issue644_percent.docx</text><text class="terminal-2281222810-r2" x="366" y="654.4" textLength="146.4" clip-path="url(#terminal-2281222810-line-26)">:body&#160;¶4:1:&#160;</text><text class="terminal-2281222810-r4" x="512.4" y="654.4" textLength="61" clip-path="url(#terminal-2281222810-line-26)">error</text><text class="terminal-2281222810-r3" x="585.6" y="654.4" textLength="73.2" clip-path="url(#terminal-2281222810-line-26)">DTL201</text><text class="terminal-2281222810-r2" x="658.8" y="654.4" textLength="207.4" clip-path="url(#terminal-2281222810-line-26)">&#160;`{%p`&#160;标签的表达式里含有&#160;</text><text class="terminal-2281222810-r2" x="976" y="654.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-26)">
-</text><text class="terminal-2281222810-r2" x="0" y="678.8" textLength="805.2" clip-path="url(#terminal-2281222810-line-27)">`%`&#160;或&#160;`}`，docxtpl&#160;解析不了（python-docx-template&#160;#644）。请先用&#160;`{%&#160;set&#160;%}`&#160;</text><text class="terminal-2281222810-r2" x="976" y="678.8" textLength="12.2" clip-path="url(#terminal-2281222810-line-27)">
-</text><text class="terminal-2281222810-r2" x="0" y="703.2" textLength="61" clip-path="url(#terminal-2281222810-line-28)">算好再引用</text><text class="terminal-2281222810-r2" x="976" y="703.2" textLength="12.2" clip-path="url(#terminal-2281222810-line-28)">
-</text><text class="terminal-2281222810-r5" x="48.8" y="727.6" textLength="390.4" clip-path="url(#terminal-2281222810-line-29)">{%p&#160;set&#160;label&#160;=&#160;{&#x27;a&#x27;:&#160;1}[&#x27;a&#x27;]&#160;%}</text><text class="terminal-2281222810-r2" x="976" y="727.6" textLength="12.2" clip-path="url(#terminal-2281222810-line-29)">
-</text><text class="terminal-2281222810-r2" x="976" y="752" textLength="12.2" clip-path="url(#terminal-2281222810-line-30)">
-</text><text class="terminal-2281222810-r2" x="0" y="776.4" textLength="256.2" clip-path="url(#terminal-2281222810-line-31)">✖&#160;3&#160;个文件中有&#160;7&#160;个错误、1&#160;个警告</text><text class="terminal-2281222810-r2" x="976" y="776.4" textLength="12.2" clip-path="url(#terminal-2281222810-line-31)">
+    <g class="terminal-1851441046-matrix">
+    <text class="terminal-1851441046-r1" x="0" y="20" textLength="488" clip-path="url(#terminal-1851441046-line-0)">$&#160;docxtpl-lint&#160;examples/*.docx&#160;--lang&#160;zh</text><text class="terminal-1851441046-r2" x="976" y="20" textLength="12.2" clip-path="url(#terminal-1851441046-line-0)">
+</text><text class="terminal-1851441046-r3" x="0" y="44.4" textLength="378.2" clip-path="url(#terminal-1851441046-line-1)">examples/issue378_unclosed.docx</text><text class="terminal-1851441046-r2" x="378.2" y="44.4" textLength="317.2" clip-path="url(#terminal-1851441046-line-1)">:body&#160;¶7&#160;[表2&#160;行3&#160;列1&#160;¶1]:1:&#160;</text><text class="terminal-1851441046-r4" x="732" y="44.4" textLength="61" clip-path="url(#terminal-1851441046-line-1)">error</text><text class="terminal-1851441046-r3" x="805.2" y="44.4" textLength="73.2" clip-path="url(#terminal-1851441046-line-1)">DTL101</text><text class="terminal-1851441046-r2" x="878.4" y="44.4" textLength="97.6" clip-path="url(#terminal-1851441046-line-1)">&#160;`{%&#160;if&#160;</text><text class="terminal-1851441046-r2" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-1)">
+</text><text class="terminal-1851441046-r2" x="0" y="68.8" textLength="305" clip-path="url(#terminal-1851441046-line-2)">%}`&#160;没有闭合，缺少&#160;`{%&#160;endif&#160;%}`</text><text class="terminal-1851441046-r2" x="976" y="68.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-2)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="93.2" textLength="158.6" clip-path="url(#terminal-1851441046-line-3)">{%&#160;if&#160;paid&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="93.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-3)">
+</text><text class="terminal-1851441046-r5" x="0" y="117.6" textLength="305" clip-path="url(#terminal-1851441046-line-4)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶6&#160;&#160;&#160;T2R2C2&#160;&#160;&#160;&#160;|&#160;</text><text class="terminal-1851441046-r2" x="976" y="117.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-4)">
+</text><text class="terminal-1851441046-r5" x="0" y="142" textLength="512.4" clip-path="url(#terminal-1851441046-line-5)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶7&#160;&#160;&#160;T2R3C1&#160;&#160;&#160;&#160;|&#160;{%&#160;if&#160;paid&#160;%}PAID</text><text class="terminal-1851441046-r2" x="976" y="142" textLength="12.2" clip-path="url(#terminal-1851441046-line-5)">
+</text><text class="terminal-1851441046-r5" x="0" y="166.4" textLength="451.4" clip-path="url(#terminal-1851441046-line-6)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶8&#160;&#160;&#160;T2R3C2&#160;&#160;&#160;&#160;|&#160;{{&#160;amount&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="166.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-6)">
+</text><text class="terminal-1851441046-r3" x="0" y="190.8" textLength="378.2" clip-path="url(#terminal-1851441046-line-7)">examples/issue378_unclosed.docx</text><text class="terminal-1851441046-r2" x="378.2" y="190.8" textLength="158.6" clip-path="url(#terminal-1851441046-line-7)">:body&#160;¶9:10:&#160;</text><text class="terminal-1851441046-r6" x="536.8" y="190.8" textLength="85.4" clip-path="url(#terminal-1851441046-line-7)">warning</text><text class="terminal-1851441046-r3" x="634.4" y="190.8" textLength="73.2" clip-path="url(#terminal-1851441046-line-7)">DTL002</text><text class="terminal-1851441046-r2" x="707.6" y="190.8" textLength="170.8" clip-path="url(#terminal-1851441046-line-7)">&#160;`{{`&#160;直到第&#160;¶10&#160;</text><text class="terminal-1851441046-r2" x="976" y="190.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-7)">
+</text><text class="terminal-1851441046-r2" x="0" y="215.2" textLength="500.2" clip-path="url(#terminal-1851441046-line-8)">段才闭合；docxtpl&#160;会把这几段合并成一段，段落格式丢失（如属有意为之，可加&#160;</text><text class="terminal-1851441046-r2" x="976" y="215.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-8)">
+</text><text class="terminal-1851441046-r2" x="0" y="239.6" textLength="292.8" clip-path="url(#terminal-1851441046-line-9)">--allow-cross-paragraph）</text><text class="terminal-1851441046-r2" x="976" y="239.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-9)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="264" textLength="219.6" clip-path="url(#terminal-1851441046-line-10)">{{&#160;client.email&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="264" textLength="12.2" clip-path="url(#terminal-1851441046-line-10)">
+</text><text class="terminal-1851441046-r5" x="0" y="288.4" textLength="451.4" clip-path="url(#terminal-1851441046-line-11)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶8&#160;&#160;&#160;T2R3C2&#160;&#160;&#160;&#160;|&#160;{{&#160;amount&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="288.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-11)">
+</text><text class="terminal-1851441046-r5" x="0" y="312.8" textLength="536.8" clip-path="url(#terminal-1851441046-line-12)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶9&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;Contact:&#160;{{&#160;client.</text><text class="terminal-1851441046-r2" x="976" y="312.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-12)">
+</text><text class="terminal-1851441046-r5" x="0" y="337.2" textLength="402.6" clip-path="url(#terminal-1851441046-line-13)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶10&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;email&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="337.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-13)">
+</text><text class="terminal-1851441046-r3" x="0" y="361.6" textLength="378.2" clip-path="url(#terminal-1851441046-line-14)">examples/issue378_unclosed.docx</text><text class="terminal-1851441046-r2" x="378.2" y="361.6" textLength="158.6" clip-path="url(#terminal-1851441046-line-14)">:body&#160;¶11:1:&#160;</text><text class="terminal-1851441046-r4" x="536.8" y="361.6" textLength="61" clip-path="url(#terminal-1851441046-line-14)">error</text><text class="terminal-1851441046-r3" x="610" y="361.6" textLength="73.2" clip-path="url(#terminal-1851441046-line-14)">DTL102</text><text class="terminal-1851441046-r2" x="683.2" y="361.6" textLength="195.2" clip-path="url(#terminal-1851441046-line-14)">&#160;`{%&#160;endfor&#160;%}`&#160;</text><text class="terminal-1851441046-r2" x="976" y="361.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-14)">
+</text><text class="terminal-1851441046-r2" x="0" y="386" textLength="122" clip-path="url(#terminal-1851441046-line-15)">找不到对应的开始标签</text><text class="terminal-1851441046-r2" x="976" y="386" textLength="12.2" clip-path="url(#terminal-1851441046-line-15)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="410.4" textLength="146.4" clip-path="url(#terminal-1851441046-line-16)">{%&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="410.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-16)">
+</text><text class="terminal-1851441046-r5" x="0" y="434.8" textLength="402.6" clip-path="url(#terminal-1851441046-line-17)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶10&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;email&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="434.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-17)">
+</text><text class="terminal-1851441046-r5" x="0" y="459.2" textLength="451.4" clip-path="url(#terminal-1851441046-line-18)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶11&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;{%&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="459.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-18)">
+</text><text class="terminal-1851441046-r3" x="0" y="483.6" textLength="402.6" clip-path="url(#terminal-1851441046-line-19)">examples/issue603_table_loop.docx</text><text class="terminal-1851441046-r2" x="402.6" y="483.6" textLength="329.4" clip-path="url(#terminal-1851441046-line-19)">:body&#160;¶5&#160;[表1&#160;行2&#160;列2&#160;¶1]:15:&#160;</text><text class="terminal-1851441046-r4" x="768.6" y="483.6" textLength="61" clip-path="url(#terminal-1851441046-line-19)">error</text><text class="terminal-1851441046-r3" x="841.8" y="483.6" textLength="73.2" clip-path="url(#terminal-1851441046-line-19)">DTL206</text><text class="terminal-1851441046-r2" x="976" y="483.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-19)">
+</text><text class="terminal-1851441046-r2" x="0" y="508" textLength="780.8" clip-path="url(#terminal-1851441046-line-20)">`{%tr&#160;for&#160;line&#160;in&#160;order.lines&#160;%}`&#160;和&#160;`{%tr&#160;endfor&#160;%}`&#160;在同一行（表&#160;1&#160;行&#160;</text><text class="terminal-1851441046-r2" x="976" y="508" textLength="12.2" clip-path="url(#terminal-1851441046-line-20)">
+</text><text class="terminal-1851441046-r2" x="0" y="532.4" textLength="463.6" clip-path="url(#terminal-1851441046-line-21)">2）；docxtpl&#160;会用第一个标签替换整行，渲染失败。请把它们放在不同的行</text><text class="terminal-1851441046-r2" x="976" y="532.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-21)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="556.8" textLength="170.8" clip-path="url(#terminal-1851441046-line-22)">{%tr&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="556.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-22)">
+</text><text class="terminal-1851441046-r5" x="0" y="581.2" textLength="866.2" clip-path="url(#terminal-1851441046-line-23)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶4&#160;&#160;&#160;T1R2C1&#160;&#160;&#160;&#160;|&#160;{%tr&#160;for&#160;line&#160;in&#160;order.lines&#160;%}{{&#160;line.name&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="581.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-23)">
+</text><text class="terminal-1851441046-r5" x="0" y="605.6" textLength="646.6" clip-path="url(#terminal-1851441046-line-24)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶5&#160;&#160;&#160;T1R2C2&#160;&#160;&#160;&#160;|&#160;{{&#160;line.qty&#160;}}{%tr&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="605.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-24)">
+</text><text class="terminal-1851441046-r5" x="0" y="630" textLength="658.8" clip-path="url(#terminal-1851441046-line-25)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶6&#160;&#160;&#160;T2R1C1&#160;&#160;&#160;&#160;|&#160;{%&#160;for&#160;c&#160;in&#160;order.comments&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="630" textLength="12.2" clip-path="url(#terminal-1851441046-line-25)">
+</text><text class="terminal-1851441046-r3" x="0" y="654.4" textLength="402.6" clip-path="url(#terminal-1851441046-line-26)">examples/issue603_table_loop.docx</text><text class="terminal-1851441046-r2" x="402.6" y="654.4" textLength="317.2" clip-path="url(#terminal-1851441046-line-26)">:body&#160;¶8&#160;[表2&#160;行3&#160;列1&#160;¶1]:1:&#160;</text><text class="terminal-1851441046-r4" x="756.4" y="654.4" textLength="61" clip-path="url(#terminal-1851441046-line-26)">error</text><text class="terminal-1851441046-r3" x="829.6" y="654.4" textLength="73.2" clip-path="url(#terminal-1851441046-line-26)">DTL204</text><text class="terminal-1851441046-r2" x="902.8" y="654.4" textLength="73.2" clip-path="url(#terminal-1851441046-line-26)">&#160;`{%tr</text><text class="terminal-1851441046-r2" x="976" y="654.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-26)">
+</text><text class="terminal-1851441046-r2" x="0" y="678.8" textLength="805.2" clip-path="url(#terminal-1851441046-line-27)">endfor&#160;%}`&#160;关闭的是&#160;`{%&#160;for&#160;c&#160;in&#160;order.comments&#160;%}`（body&#160;¶6&#160;[T2&#160;R1&#160;C1&#160;</text><text class="terminal-1851441046-r2" x="976" y="678.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-27)">
+</text><text class="terminal-1851441046-r2" x="0" y="703.2" textLength="536.8" clip-path="url(#terminal-1851441046-line-28)">¶1]），但两者前缀不一致（-&#160;vs&#160;tr）；docxtpl&#160;只会删掉其中一处的行/段落</text><text class="terminal-1851441046-r2" x="976" y="703.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-28)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="727.6" textLength="170.8" clip-path="url(#terminal-1851441046-line-29)">{%tr&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="727.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-29)">
+</text><text class="terminal-1851441046-r5" x="0" y="752" textLength="390.4" clip-path="url(#terminal-1851441046-line-30)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶7&#160;&#160;&#160;T2R2C1&#160;&#160;&#160;&#160;|&#160;{{&#160;c&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="752" textLength="12.2" clip-path="url(#terminal-1851441046-line-30)">
+</text><text class="terminal-1851441046-r5" x="0" y="776.4" textLength="475.8" clip-path="url(#terminal-1851441046-line-31)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶8&#160;&#160;&#160;T2R3C1&#160;&#160;&#160;&#160;|&#160;{%tr&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="776.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-31)">
+</text><text class="terminal-1851441046-r5" x="0" y="800.8" textLength="658.8" clip-path="url(#terminal-1851441046-line-32)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶9&#160;&#160;&#160;T3R1C1&#160;&#160;&#160;&#160;|&#160;{%&#160;tr&#160;for&#160;x&#160;in&#160;order.extra&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="800.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-32)">
+</text><text class="terminal-1851441046-r3" x="0" y="825.2" textLength="402.6" clip-path="url(#terminal-1851441046-line-33)">examples/issue603_table_loop.docx</text><text class="terminal-1851441046-r2" x="402.6" y="825.2" textLength="317.2" clip-path="url(#terminal-1851441046-line-33)">:body&#160;¶9&#160;[表3&#160;行1&#160;列1&#160;¶1]:1:&#160;</text><text class="terminal-1851441046-r4" x="756.4" y="825.2" textLength="61" clip-path="url(#terminal-1851441046-line-33)">error</text><text class="terminal-1851441046-r3" x="829.6" y="825.2" textLength="73.2" clip-path="url(#terminal-1851441046-line-33)">DTL202</text><text class="terminal-1851441046-r2" x="976" y="825.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-33)">
+</text><text class="terminal-1851441046-r2" x="0" y="849.6" textLength="573.4" clip-path="url(#terminal-1851441046-line-34)">应写成&#160;`{%tr&#160;…`，中间不能有空格；`{%&#160;tr&#160;…`&#160;会被当成未知的&#160;Jinja&#160;标签</text><text class="terminal-1851441046-r2" x="976" y="849.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-34)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="874" textLength="353.8" clip-path="url(#terminal-1851441046-line-35)">{%&#160;tr&#160;for&#160;x&#160;in&#160;order.extra&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="874" textLength="12.2" clip-path="url(#terminal-1851441046-line-35)">
+</text><text class="terminal-1851441046-r5" x="0" y="898.4" textLength="475.8" clip-path="url(#terminal-1851441046-line-36)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶8&#160;&#160;&#160;T2R3C1&#160;&#160;&#160;&#160;|&#160;{%tr&#160;endfor&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="898.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-36)">
+</text><text class="terminal-1851441046-r5" x="0" y="922.8" textLength="658.8" clip-path="url(#terminal-1851441046-line-37)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶9&#160;&#160;&#160;T3R1C1&#160;&#160;&#160;&#160;|&#160;{%&#160;tr&#160;for&#160;x&#160;in&#160;order.extra&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="922.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-37)">
+</text><text class="terminal-1851441046-r5" x="0" y="947.2" textLength="390.4" clip-path="url(#terminal-1851441046-line-38)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶10&#160;&#160;T3R2C1&#160;&#160;&#160;&#160;|&#160;{{&#160;x&#160;}}</text><text class="terminal-1851441046-r2" x="976" y="947.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-38)">
+</text><text class="terminal-1851441046-r3" x="0" y="971.6" textLength="366" clip-path="url(#terminal-1851441046-line-39)">examples/issue644_percent.docx</text><text class="terminal-1851441046-r2" x="366" y="971.6" textLength="146.4" clip-path="url(#terminal-1851441046-line-39)">:body&#160;¶1:1:&#160;</text><text class="terminal-1851441046-r4" x="512.4" y="971.6" textLength="61" clip-path="url(#terminal-1851441046-line-39)">error</text><text class="terminal-1851441046-r3" x="585.6" y="971.6" textLength="73.2" clip-path="url(#terminal-1851441046-line-39)">DTL201</text><text class="terminal-1851441046-r2" x="658.8" y="971.6" textLength="207.4" clip-path="url(#terminal-1851441046-line-39)">&#160;`{%p`&#160;标签的表达式里含有&#160;</text><text class="terminal-1851441046-r2" x="976" y="971.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-39)">
+</text><text class="terminal-1851441046-r2" x="0" y="996" textLength="805.2" clip-path="url(#terminal-1851441046-line-40)">`%`&#160;或&#160;`}`，docxtpl&#160;解析不了（python-docx-template&#160;#644）。请先用&#160;`{%&#160;set&#160;%}`&#160;</text><text class="terminal-1851441046-r2" x="976" y="996" textLength="12.2" clip-path="url(#terminal-1851441046-line-40)">
+</text><text class="terminal-1851441046-r2" x="0" y="1020.4" textLength="61" clip-path="url(#terminal-1851441046-line-41)">算好再引用</text><text class="terminal-1851441046-r2" x="976" y="1020.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-41)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="1044.8" textLength="341.6" clip-path="url(#terminal-1851441046-line-42)">{%p&#160;if&#160;row_index&#160;%&#160;2&#160;==&#160;0&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="1044.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-42)">
+</text><text class="terminal-1851441046-r5" x="0" y="1069.2" textLength="646.6" clip-path="url(#terminal-1851441046-line-43)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶1&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;{%p&#160;if&#160;row_index&#160;%&#160;2&#160;==&#160;0&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="1069.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-43)">
+</text><text class="terminal-1851441046-r5" x="0" y="1093.6" textLength="402.6" clip-path="url(#terminal-1851441046-line-44)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶2&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;even&#160;row</text><text class="terminal-1851441046-r2" x="976" y="1093.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-44)">
+</text><text class="terminal-1851441046-r3" x="0" y="1118" textLength="366" clip-path="url(#terminal-1851441046-line-45)">examples/issue644_percent.docx</text><text class="terminal-1851441046-r2" x="366" y="1118" textLength="146.4" clip-path="url(#terminal-1851441046-line-45)">:body&#160;¶4:1:&#160;</text><text class="terminal-1851441046-r4" x="512.4" y="1118" textLength="61" clip-path="url(#terminal-1851441046-line-45)">error</text><text class="terminal-1851441046-r3" x="585.6" y="1118" textLength="73.2" clip-path="url(#terminal-1851441046-line-45)">DTL201</text><text class="terminal-1851441046-r2" x="658.8" y="1118" textLength="207.4" clip-path="url(#terminal-1851441046-line-45)">&#160;`{%p`&#160;标签的表达式里含有&#160;</text><text class="terminal-1851441046-r2" x="976" y="1118" textLength="12.2" clip-path="url(#terminal-1851441046-line-45)">
+</text><text class="terminal-1851441046-r2" x="0" y="1142.4" textLength="805.2" clip-path="url(#terminal-1851441046-line-46)">`%`&#160;或&#160;`}`，docxtpl&#160;解析不了（python-docx-template&#160;#644）。请先用&#160;`{%&#160;set&#160;%}`&#160;</text><text class="terminal-1851441046-r2" x="976" y="1142.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-46)">
+</text><text class="terminal-1851441046-r2" x="0" y="1166.8" textLength="61" clip-path="url(#terminal-1851441046-line-47)">算好再引用</text><text class="terminal-1851441046-r2" x="976" y="1166.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-47)">
+</text><text class="terminal-1851441046-r5" x="48.8" y="1191.2" textLength="390.4" clip-path="url(#terminal-1851441046-line-48)">{%p&#160;set&#160;label&#160;=&#160;{&#x27;a&#x27;:&#160;1}[&#x27;a&#x27;]&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="1191.2" textLength="12.2" clip-path="url(#terminal-1851441046-line-48)">
+</text><text class="terminal-1851441046-r5" x="0" y="1215.6" textLength="451.4" clip-path="url(#terminal-1851441046-line-49)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;¶3&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;{%p&#160;endif&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="1215.6" textLength="12.2" clip-path="url(#terminal-1851441046-line-49)">
+</text><text class="terminal-1851441046-r5" x="0" y="1240" textLength="695.4" clip-path="url(#terminal-1851441046-line-50)">&#160;&#160;&#160;&#160;&#160;&#160;&gt;&#160;¶4&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|&#160;{%p&#160;set&#160;label&#160;=&#160;{&#x27;a&#x27;:&#160;1}[&#x27;a&#x27;]&#160;%}</text><text class="terminal-1851441046-r2" x="976" y="1240" textLength="12.2" clip-path="url(#terminal-1851441046-line-50)">
+</text><text class="terminal-1851441046-r2" x="976" y="1264.4" textLength="12.2" clip-path="url(#terminal-1851441046-line-51)">
+</text><text class="terminal-1851441046-r2" x="0" y="1288.8" textLength="256.2" clip-path="url(#terminal-1851441046-line-52)">✖&#160;3&#160;个文件中有&#160;7&#160;个错误、1&#160;个警告</text><text class="terminal-1851441046-r2" x="976" y="1288.8" textLength="12.2" clip-path="url(#terminal-1851441046-line-52)">
 </text>
     </g>
     </g>
