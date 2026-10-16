@@ -4,8 +4,8 @@ import pytest
 from docx import Document
 from docxtpl import DocxTemplate, RichText
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.contract import diff, infer_tree, sample, to_pydantic, to_schema
+from docxtpl_lint.core import lint_path
 
 
 def _doc(tmp_path, *paras, name="t.docx"):

@@ -6,8 +6,8 @@ import zipfile
 from docx import Document
 from docxtpl import DocxTemplate
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.contract import infer_tree, to_schema
+from docxtpl_lint.core import lint_path
 
 W_PLACE = "PLACEHOLDER"
 

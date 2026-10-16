@@ -6,8 +6,8 @@ import pytest
 from docx import Document
 from docxtpl import DocxTemplate
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.verify import verify_path
 
 

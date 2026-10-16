@@ -244,7 +244,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v2.0.0
+- uses: yq6666-66/docxtpl-lint@v2.0.1
   with:
     files: |
       templates/**/*.docx
@@ -259,7 +259,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v2.0.0
+    rev: v2.0.1
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

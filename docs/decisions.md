@@ -228,3 +228,5 @@
 | D139 | `diff --fail-on breaking|change|never`; `--fail-on-breaking` is a deprecated alias (removal 3.0); conflicting flags exit 2 | DeepSeek #7: deprecate rather than break |
 | D140 | Dropped: `--format auto` (DeepSeek #6, no user request, CI-detection footguns) and config for `fix` (it has no rules affected by filters/tests/autoescape) | |
 | D141 | Rejected review #9 ("verify ignores the env's autoescape") | verify renders with the env itself, so docxtpl applies the env's autoescape exactly as the user's app would |
+
+**D142.** Ship 2.0 as **2.0.1**, as with D132. The pushed v2.0.0 tag failed CI's `ruff check` (import order after switching tests to `docxtpl_lint.core`). Locally, `check.sh` ran `ruff check && ruff format --check` as one `&&` chain, which `set -e` does not stop on. Each check is now its own line. 2.0.0 was never released or published.

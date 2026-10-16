@@ -5,8 +5,8 @@ from docx import Document
 from rule_cases import CASES
 from rule_cases import build as build_case
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.messages import RULES
 from docxtpl_lint.reader import CellPos
 

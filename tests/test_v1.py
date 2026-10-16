@@ -7,9 +7,9 @@ from docx import Document
 from rule_cases import CASES, CTX, _table
 from rule_cases import build as build_case
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
 from docxtpl_lint.contract import diff, infer_tree, sample, to_schema
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.fixes import closest, suggest
 
 docxtpl = pytest.importorskip("docxtpl")

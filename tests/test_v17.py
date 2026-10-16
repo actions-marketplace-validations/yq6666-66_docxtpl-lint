@@ -5,8 +5,8 @@ from docx import Document
 from docxtpl import DocxTemplate
 from jinja2 import TemplateSyntaxError
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.fixes import suggest, write_fixed
 
 

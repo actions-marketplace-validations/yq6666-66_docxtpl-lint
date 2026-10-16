@@ -7,8 +7,8 @@ from docx import Document
 from docxtpl import DocxTemplate
 from jinja2 import Environment, TemplateAssertionError, TemplateRuntimeError, UndefinedError
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
+from docxtpl_lint.core import lint_path
 
 
 def _doc(tmp_path, *paras, name="t.docx"):

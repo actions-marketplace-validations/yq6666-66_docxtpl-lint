@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 from docx import Document
 
-from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
 from docxtpl_lint.contract import infer_tree, to_schema
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.fixes import suggest
 
 ROOT = Path(__file__).resolve().parents[1]

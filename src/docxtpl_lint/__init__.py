@@ -19,7 +19,7 @@ __all__ = [
     "infer_schema",
     "lint",
 ]
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 
 def __getattr__(name: str) -> Any:

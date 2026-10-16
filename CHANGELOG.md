@@ -6,7 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-10-16
+## [2.0.1] - 2026-10-16
+
+First release of 2.0. The `v2.0.0` tag was pushed but never released: CI's ruff import-order check failed on test files, so 2.0.0 is not on PyPI. 2.0.1 = 2.0.0 + sorted test imports.
 
 Migration guide: [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md).
 
@@ -201,8 +203,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.1...v2.0.0
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.1...v2.0.1
 [1.9.1]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...v1.9.1
 [1.8.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...v1.7.0

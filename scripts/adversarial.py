@@ -19,8 +19,8 @@ from docx import Document
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from docxtpl_lint.core import lint_path  # noqa: E402
 from docxtpl_lint.contract import flatten, infer_tree  # noqa: E402
+from docxtpl_lint.core import lint_path  # noqa: E402
 from docxtpl_lint.fixes import suggest  # noqa: E402
 from docxtpl_lint.verify import verify_path  # noqa: E402
 
