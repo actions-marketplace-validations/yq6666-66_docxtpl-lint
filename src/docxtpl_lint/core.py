@@ -972,6 +972,10 @@ def lint_path(
         issues.extend(check_docxtpl_tags(file, part_tags, part_paras))
         if not block:
             issues.extend(check_syntax(file, part_tags))
+    for p in paras:
+        if p.deleted_code:
+            m = re.search(r"\{[{%#].*?(?:[}%#]\}|$)", p.deleted_code)
+            issues.append(Issue("DTL003", _loc(file, p, 1), (m.group(0) if m else p.deleted_code)[:60], {}))
     order = {p: i for i, p in enumerate(parts)}
     issues.sort(key=lambda i: (order.get(i.location.part, 99), i.location.paragraph, i.location.column))
     an = analyse(tags)

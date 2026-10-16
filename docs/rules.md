@@ -23,6 +23,7 @@ or for one paragraph (v1.2; ids or prefixes such as `DTL2`):
 | --- | --- | --- |
 | [DTL001](#dtl001) | error | tag never closed |
 | [DTL002](#dtl002) | warning | tag spans several paragraphs |
+| [DTL003](#dtl003) | error | template code inside a tracked deletion |
 | [DTL005](#dtl005) | warning | unused or unknown suppression comment |
 | [DTL101](#dtl101) | error | unclosed block |
 | [DTL102](#dtl102) | error | stray end/else/elif |
@@ -86,6 +87,15 @@ Hello {{ name }}
 ```
 
 **docxtpl behaviour.** renders, paragraphs merged (formatting lost); silence with `--allow-cross-paragraph`.
+
+<a id="dtl003"></a>
+## DTL003 — template code inside a tracked deletion
+
+**What it means.** The file still has unaccepted tracked changes (Review → Track Changes), and a deletion (`w:del`, or the source side of a move, `w:moveFrom`) contains `{{`, `{%` or `{#`. docxtpl works on the raw XML. Deleted text is still there, so the code inside it is still executed and its rendered output ends up in the revision history of every generated document. A customer can see it with "Show markup".
+
+**Fix.** In Word: Review → Accept (or Reject) → All Changes, then save the template.
+
+**docxtpl behaviour.** `{{ old }}` inside a deletion renders: the generated file contains `<w:delText>` with the value of `old`. A moved `{{ a }}` renders twice (once in `moveFrom`, once in `moveTo`).
 
 <a id="dtl005"></a>
 ## DTL005 — unused or unknown suppression comment

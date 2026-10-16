@@ -30,7 +30,8 @@ def _first_body_p(root):
     return root.find(f"{_W}body").find(f"{_W}p")
 
 
-def test_ins_counted_del_excluded(tmp_path):
+def test_ins_and_del_counted_like_docxtpl(tmp_path):
+    """1.4 (D95): docxtpl renders text inside tracked deletions, so the linter reads it too."""
     doc = Document()
     doc.add_paragraph("keep")
 
@@ -56,7 +57,8 @@ def test_ins_counted_del_excluded(tmp_path):
     paras = [p for p in iter_paragraphs(path) if p.part == "body"]
     text = paras[0].text
     assert "INSERTED" in text
-    assert "DELETED" not in text
+    assert "DELETED" in text
+    assert paras[0].deleted_code == ""  # no template code in the deletion: no DTL003
 
 
 def test_textbox_paragraph_is_separate(tmp_path):

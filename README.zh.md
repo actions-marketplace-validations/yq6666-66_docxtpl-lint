@@ -39,6 +39,11 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 1.4 的新特性：修订记录和域代码
+
+- **DTL003**：未接受的修订删除里还有 `{{ … }}`。docxtpl 也会渲染被删除的文字，渲染出的值会泄漏到每份生成文档的修订记录里。解决办法：先接受或拒绝全部修订。
+- **域代码**（如 `HYPERLINK "{{ url }}"`）会被 docxtpl 渲染，现在也纳入检查和数据契约。
+
 ## 1.3 的新特性：Jinja 正确性
 
 - **DTL104 / DTL105**：未知的过滤器和测试。例如 `{{ total|money }}` 会让 docxtpl 在渲染前就报错。如果你传了自己的 `jinja_env`，用 `--filters money`、`--tests vat`、配置项 `filters` / `tests`，或 `--jinja-env myapp.reports:jinja_env` 声明这些名字。
@@ -201,7 +206,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.3.0
+- uses: yq6666-66/docxtpl-lint@v1.4.0
   with:
     files: |
       templates/**/*.docx
@@ -213,7 +218,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.3.0
+    rev: v1.4.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

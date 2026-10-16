@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-16
+
+### Added
+- DTL003 (error): template code inside an unaccepted tracked deletion. docxtpl still renders it, and the value ends up in the generated document's revision history.
+- Field codes are linted: `{{ … }}` inside `HYPERLINK "…"` / other field instructions (`w:instrText`, `w:fldSimple`) is rendered by docxtpl, so it is now syntax-checked and part of `--list-vars` / `infer` / `--data` checks.
+
+### Changed
+- Paragraphs with tracked deletions or field codes are read the way docxtpl's `patch_xml` sees them: a deletion inside a tag is dropped, and deleted text outside tags is kept. Other paragraphs are unchanged.
+- The weekly docxtpl-upstream CI job also runs the 1.3/1.4 render tests.
+
 ## [1.3.0] - 2026-10-16
 
 ### Added
@@ -126,7 +136,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.0.0...v1.1.0

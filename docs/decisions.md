@@ -137,3 +137,15 @@
 | D91 | 自定义过滤器 / 测试的声明方式：`--filters`、`--tests`、配置项 `filters`/`tests`/`jinja-env`，以及 `--jinja-env MODULE:ATTR` | 与 DeepSeek 一致：没有这个出口，DTL104 就会成为误报来源。`--jinja-env` 会执行用户代码，帮助文字里已写明 |
 | D92 | 官方模板 custom_jinja_filters_tpl.docx 的 DTL104 列入 must_report | 它的测试脚本是传入自定义 jinja_env 才能渲染的；不声明时 docxtpl 确实会报错，所以是真问题，不是误报 |
 | D93 | DeepSeek 第 12 轮列出的 4 个误报场景：驳回 3 个，接受 1 个提醒 | 已写成测试：`if` 里的 `set`、循环之后的 `set`、名为 `loop` 的宏参数都不会误报（测试通过）。"同名的顶层数据会掩盖 DTL106"是有意的设计（D90） |
+
+
+## v1.4：修订记录和域代码里，docxtpl 实际看到的内容（DeepSeek 第 13 轮）
+
+| 编号 | 决定 | 实验（docxtpl 0.20.2） |
+|---|---|---|
+| D94 | 1.4 的范围按实验结果收窄，部分采纳 DeepSeek "1.4 最弱"的意见 | 内容控件（w:sdt，块级和行内）、`w:ins`、标签中间的修订删除，docxtpl 都能正确处理，所以都不做规则 |
+| D95 | 含有修订删除、域代码或 `moveFrom` 的段落，用 docxtpl 自己的 patch_xml 正则处理该段 XML 后再取文字 | 实测：标签内部的删除会被 striptags 去掉（`{{ <del>nmae</del>name }}` → 输出 name）；标签外部的删除文字和域代码会保留并被渲染。只有这类段落走新逻辑，普通段落不变（官方 40 个模板结果不变） |
+| D96 | 新增 DTL003：修订删除里含有模板代码。DeepSeek 建议定为 error，采纳 | 实测：删除里的 `{{ old }}` 被渲染，值进入输出文档的 `<w:delText>`，用"显示标记"就能看到，属于数据泄漏；`moveFrom` 里的标签会渲染两次 |
+| D97 | 域代码（HYPERLINK 等的 instrText、fldSimple 的 w:instr）纳入检查和数据契约 | 实测：`HYPERLINK "{{ url }}"` 会被渲染；域代码里写坏的标签会导致渲染失败，而 1.3 之前对此报"无问题" |
+| D98 | DeepSeek 担心"照抄 docxtpl 内部正则会和上游脱节" | 每周跑的上游兼容性任务（docxtpl 最新版和 master）现在也跑 test_v13/test_v14，正则一旦脱节就会失败 |
+| D99 | 不采纳：把 `moveTo` 也标出来 | moveTo 那一侧正常渲染一次，没有被隐藏的代码 |

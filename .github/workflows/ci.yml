@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]" && pip install --upgrade "${{ matrix.docxtpl }}"
-      - run: pytest -q tests/test_docxtpl_behaviour.py
+      - run: pytest -q tests/test_docxtpl_behaviour.py tests/test_v13.py tests/test_v14.py
   benchmark:
     # 0 false positives on python-docx-template's own test templates (benchmark/expected.json).
     runs-on: ubuntu-latest

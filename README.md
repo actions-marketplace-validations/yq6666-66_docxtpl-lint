@@ -45,6 +45,11 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 1.4: tracked changes and field codes
+
+- **DTL003**: an unaccepted tracked deletion that still contains `{{ … }}`. docxtpl renders deleted text too, so the value leaks into the revision history of every generated document. Fix: accept or reject all changes first.
+- **Field codes** (`HYPERLINK "{{ url }}"`) are rendered by docxtpl and are now linted and included in the data contract.
+
 ## New in 1.3: Jinja correctness
 
 - **DTL104 / DTL105**: unknown filters and tests (`{{ total|money }}` makes docxtpl raise before rendering). If you pass your own `jinja_env`, declare the names with `--filters money`, `--tests vat`, the `filters` / `tests` config keys, or `--jinja-env myapp.reports:jinja_env`.
@@ -209,7 +214,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.3.0
+- uses: yq6666-66/docxtpl-lint@v1.4.0
   with:
     files: |
       templates/**/*.docx
@@ -221,7 +226,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.3.0
+    rev: v1.4.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

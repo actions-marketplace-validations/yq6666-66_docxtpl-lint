@@ -41,6 +41,7 @@ class Paragraph:
     cells: tuple[CellPos, ...]  # outermost -> innermost table cell; empty if not in a table
     cell_para: int  # 1-based paragraph index inside innermost cell (0 if not in table)
     text: str
+    deleted_code: str = ""  # template code inside a tracked deletion (w:del / w:moveFrom), see DTL003
 
 
 def _part_label(name: str) -> str | None:
@@ -73,6 +74,51 @@ def _para_text(p: etree._Element) -> str:
         else:
             out.append(" ")
     return "".join(out)
+
+
+_SPECIAL = (f"{_W}delText", f"{_W}instrText", f"{_W}fldSimple")
+_TEXT_RE = re.compile(
+    r"<w:(?:t|delText|instrText)(?:\s[^>]*)?>([^<]*)</w:(?:t|delText|instrText)>|<w:fldSimple\s[^>]*?w:instr=\"([^\"]*)\""
+)
+_FIRST_RE = re.compile(r"(?<={)(<[^>]*>)+(?=[\{%\#])|(?<=[%\}\#])(<[^>]*>)+(?=\})", re.DOTALL)
+_TAG_RE = re.compile(r"{%(?:(?!%}).)*|{#(?:(?!#}).)*|{{(?:(?!}}).)*", re.DOTALL)
+_STRIP_RE = re.compile(r"</w:t>.*?(<w:t>|<w:t [^>]*>)", re.DOTALL)
+_CODE_RE = re.compile(r"{[{%#]")
+
+
+def _own(p: etree._Element, tags: tuple[str, ...]) -> list[etree._Element]:
+    out = []
+    for el in p.iter(*tags):
+        anc = el.getparent()
+        while anc is not None and anc.tag != f"{_W}p":
+            anc = anc.getparent()
+        if anc is p:
+            out.append(el)
+    return out
+
+
+def _docxtpl_text(p: etree._Element) -> str:
+    """Paragraph text as docxtpl's Jinja sees it when the paragraph has tracked deletions or
+    field codes: docxtpl's own ``patch_xml`` regexes are applied to the paragraph XML, so XML
+    between ``</w:t>`` and ``<w:t>`` inside a tag (e.g. a deletion in the middle of ``{{ … }}``)
+    disappears, while deleted text and field codes *outside* tags stay and are rendered."""
+    import html
+
+    q = etree.fromstring(etree.tostring(p))
+    for nested in list(q.iter(f"{_W}p"))[1:]:  # text boxes are their own paragraphs
+        nested.getparent().remove(nested)
+    xml = etree.tostring(q, encoding="unicode")
+    xml = _FIRST_RE.sub("", xml)
+    xml = _TAG_RE.sub(lambda m: _STRIP_RE.sub("", m.group(0)), xml)
+    return html.unescape("".join(a or b for a, b in _TEXT_RE.findall(xml)))
+
+
+def _deleted_code(p: etree._Element) -> str:
+    deleted = [el.text or "" for el in _own(p, (f"{_W}delText",))]
+    for mv in _own(p, (f"{_W}moveFrom",)):
+        deleted += [t.text or "" for t in mv.iter(f"{_W}t")]
+    text = "".join(deleted)
+    return text if _CODE_RE.search(text) else ""
 
 
 def iter_paragraphs(path: str | Path) -> Iterator[Paragraph]:
@@ -109,12 +155,14 @@ def _walk_part(root: etree._Element, label: str) -> Iterator[Paragraph]:
             counters["p"] += 1
             if stack:
                 stack[-1][3] += 1
+            special = bool(_own(el, _SPECIAL)) or bool(_own(el, (f"{_W}moveFrom",)))
             yield Paragraph(
                 part=label,
                 index=counters["p"],
                 cells=tuple(CellPos(t, r, c) for t, r, c, _ in stack),
                 cell_para=stack[-1][3] if stack else 0,
-                text=_para_text(el),
+                text=_docxtpl_text(el) if special else _para_text(el),
+                deleted_code=_deleted_code(el) if special else "",
             )
         for child in el:
             if isinstance(child.tag, str):

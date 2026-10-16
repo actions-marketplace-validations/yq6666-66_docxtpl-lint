@@ -37,6 +37,16 @@ _RULES = [
         "（如属有意为之，可加 --allow-cross-paragraph）",
     ),
     Rule(
+        "DTL003",
+        "error",
+        "template code inside a tracked deletion",
+        "this paragraph has an unaccepted tracked deletion that contains template code; docxtpl still renders "
+        "deleted text, so the code runs and its output stays in the document's revision history. Accept or reject "
+        "all tracked changes before using the file as a template",
+        "该段落里有未接受的修订删除，其中含有模板代码；docxtpl 仍会渲染被删除的文字，这段代码会执行，"
+        "渲染结果还会留在生成文档的修订记录里。请先接受或拒绝全部修订，再把文件当模板使用",
+    ),
+    Rule(
         "DTL005",
         "warning",
         "unused or unknown suppression comment",
