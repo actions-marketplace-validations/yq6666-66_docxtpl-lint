@@ -74,6 +74,17 @@ jobs:
           files: |
             examples/clean.docx
             tmp dir/*.docx
+      # failing templates: summary, SARIF and annotated copies; the step must fail
+      - id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          files: examples/issue*.docx
+          sarif: docxtpl-lint.sarif
+          annotate: "true"
+      - run: |
+          test "${{ steps.bad.outcome }}" = "failure"
+          python -c "import json; r=json.load(open('docxtpl-lint.sarif'))['runs'][0]['results']; assert r and all('partialFingerprints' in x for x in r)"
   build:
     runs-on: ubuntu-latest
     steps:

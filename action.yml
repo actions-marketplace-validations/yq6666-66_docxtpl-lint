@@ -9,13 +9,29 @@ inputs:
     description: Newline-separated .docx paths or globs (`**` supported). Paths may contain spaces.
     required: true
   args:
-    description: Extra CLI arguments, e.g. "--data sample.json --warnings-as-errors"
+    description: Extra CLI arguments, e.g. "--data sample.json --warnings-as-errors" (split on spaces; no quoting)
     required: false
     default: ""
   python-version:
     description: Python version used to run the linter
     required: false
     default: "3.12"
+  summary:
+    description: Write a Markdown table of the findings to the job summary
+    required: false
+    default: "true"
+  baseline:
+    description: Baseline file (from `docxtpl-lint --write-baseline`); only new findings fail
+    required: false
+    default: ""
+  sarif:
+    description: Also write a SARIF report to this path (upload it with github/codeql-action/upload-sarif)
+    required: false
+    default: ""
+  annotate:
+    description: Upload copies of failing templates with Word comments as the artifact `docxtpl-lint-annotated`
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -24,10 +40,15 @@ runs:
         python-version: ${{ inputs.python-version }}
     - shell: bash
       run: python -m pip install --quiet "${{ github.action_path }}"
-    - shell: bash
+    - id: lint
+      shell: bash
       env:
         FILES: ${{ inputs.files }}
         ARGS: ${{ inputs.args }}
+        SUMMARY: ${{ inputs.summary }}
+        BASELINE: ${{ inputs.baseline }}
+        SARIF: ${{ inputs.sarif }}
+        ANNOTATE: ${{ inputs.annotate }}
       run: |
         shopt -s globstar nullglob
         files=()
@@ -44,4 +65,22 @@ runs:
           exit 2
         fi
         read -r -a extra <<< "$ARGS"
-        docxtpl-lint --format github "${extra[@]}" "${files[@]}"
+        truthy() { [[ "${1,,}" =~ ^(true|1|yes|on)$ ]]; }
+        opts=()
+        md="$RUNNER_TEMP/docxtpl-lint-summary.md"
+        truthy "$SUMMARY" && opts+=( --report "markdown:$md" )
+        [ -n "$BASELINE" ] && opts+=( --baseline "$BASELINE" )
+        [ -n "$SARIF" ] && opts+=( --report "sarif:$SARIF" )
+        truthy "$ANNOTATE" && opts+=( --annotate "$RUNNER_TEMP/docxtpl-lint-annotated" )
+        rc=0
+        docxtpl-lint --format github "${opts[@]}" "${extra[@]}" "${files[@]}" || rc=$?
+        if truthy "$SUMMARY" && [ -f "$md" ]; then cat "$md" >> "$GITHUB_STEP_SUMMARY"; fi
+        if compgen -G "$RUNNER_TEMP/docxtpl-lint-annotated/*.docx" > /dev/null; then
+          echo "annotated=true" >> "$GITHUB_OUTPUT"
+        fi
+        exit $rc
+    - if: ${{ always() && steps.lint.outputs.annotated == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: docxtpl-lint-annotated
+        path: ${{ runner.temp }}/docxtpl-lint-annotated

@@ -45,6 +45,11 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 1.8: CI ecosystem
+
+- The GitHub Action writes a Markdown table to the job summary. New inputs: `baseline`, `sarif: docxtpl-lint.sarif` (for `github/codeql-action/upload-sarif`), and `annotate: true` (failing templates with Word comments, uploaded as an artifact).
+- `--format gitlab` for GitLab Code Quality; `--format markdown`; `--report FORMAT:FILE` to write several reports in one run. Findings carry stable fingerprints, so CI tools can track them across commits.
+
 ## New in 1.7: fix --write
 
 `docxtpl-lint fix contract.docx --write contract.fixed.docx` applies the safe fixes (missing `}`, `{% tr` → `{%tr`, prefix pairs, misspelt `endfro`) to a **copy**, editing inside the existing Word runs so formatting is kept. Guesses (e.g. renaming `custmer` after `--data`) need `--unsafe`. The original template is never touched.
@@ -230,11 +235,14 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.7.0
+- uses: yq6666-66/docxtpl-lint@v1.8.0
   with:
     files: |
       templates/**/*.docx
     args: --data tests/sample_context.json
+    # baseline: docxtpl-lint-baseline.json
+    # sarif: docxtpl-lint.sarif
+    # annotate: true
 ```
 
 **pre-commit**
@@ -242,10 +250,24 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.7.0
+    rev: v1.8.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]
+```
+
+**GitLab CI** (Code Quality report):
+
+```yaml
+docxtpl-lint:
+  image: python:3.12
+  script:
+    - pip install docxtpl-lint
+    - docxtpl-lint --format gitlab -o gl-code-quality.json templates/*.docx
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality.json
 ```
 
 **Plain shell:** `docxtpl-lint --format github templates/*.docx`

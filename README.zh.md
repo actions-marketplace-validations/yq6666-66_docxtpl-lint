@@ -39,6 +39,11 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 1.8 的新特性：CI 生态
+
+- GitHub Action 会在 job summary 里写一张 Markdown 问题表。新增输入：`baseline`、`sarif: docxtpl-lint.sarif`（配合 `github/codeql-action/upload-sarif`）、`annotate: true`（把带 Word 批注的问题模板副本上传为 artifact）。
+- `--format gitlab` 生成 GitLab Code Quality 报告；新增 `--format markdown`；`--report FORMAT:FILE` 可以一次运行生成多份报告。每个问题都有稳定的指纹，CI 工具可以跨提交跟踪。
+
 ## 1.7 的新特性：fix --write
 
 `docxtpl-lint fix contract.docx --write contract.fixed.docx` 会把安全的修复（缺少的 `}`、`{% tr` → `{%tr`、前缀配对、拼错的 `endfro`）应用到一份**副本**上。修改直接在 Word 原有的 run 里进行，格式不变。猜测性的修复（例如根据 `--data` 把 `custmer` 改名）需要加 `--unsafe`。原模板永远不会被改动。
@@ -222,11 +227,14 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.7.0
+- uses: yq6666-66/docxtpl-lint@v1.8.0
   with:
     files: |
       templates/**/*.docx
     args: --data tests/sample_context.json
+    # baseline: docxtpl-lint-baseline.json
+    # sarif: docxtpl-lint.sarif
+    # annotate: true
 ```
 
 **pre-commit**
@@ -234,10 +242,24 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.7.0
+    rev: v1.8.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]
+```
+
+**GitLab CI**（Code Quality 报告）：
+
+```yaml
+docxtpl-lint:
+  image: python:3.12
+  script:
+    - pip install docxtpl-lint
+    - docxtpl-lint --format gitlab -o gl-code-quality.json templates/*.docx
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality.json
 ```
 
 **纯 shell：** `docxtpl-lint --format github templates/*.docx`

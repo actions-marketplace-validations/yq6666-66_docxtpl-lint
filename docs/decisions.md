@@ -183,3 +183,15 @@
 | D113 | 最多 10 轮：每轮每段只做一处修复；只有问题数下降的那一轮才保留 | 同一段里有多个问题时，下一轮按新文本重新给出建议，避免基于旧文本的修改相互冲突 |
 | D114 | 含修订删除或域代码的段落不自动修复 | 这类段落的文字和 run 结构对应不上，交给作者手动处理（有测试） |
 | D115 | 第 16 轮代码审查：只采纳"删除无用的 iselement 检查" | 驳回的条目："插入时选错 run"（插在 run 边界时写进前一个 run，与在 Word 里打字的行为一致）、"old == new 时空转"（suggest 不会产生这种修复）、"同标签部件冲突"（每个部件文件名唯一）等 |
+
+
+## v1.8：CI 生态（DeepSeek 第 17 轮）
+
+| 编号 | 决定 | 依据 |
+|---|---|---|
+| D116 | 新增 `--format markdown`，用于 job summary 或 PR 评论 | 不看日志的人也能直接看到一张问题表 |
+| D117 | 新增 `--format gitlab`（GitLab Code Quality） | GitLab 用户此前没有可用的格式。fingerprint 复用基线的定位键（部件 + 单元格 + 段落文字哈希）再加出现序号，插入段落后不变（有测试） |
+| D118 | SARIF 增加 `partialFingerprints` | 与 GitLab 用同一个 id，GitHub 代码扫描能跨提交去重 |
+| D119 | 新增 `--output FILE` 和可重复的 `--report FORMAT:FILE` | 运行一次就能同时生成 GitHub 注解、SARIF 和 Markdown，Action 正是这样调用的 |
+| D120 | Action 新增输入 `summary`（默认开启）、`baseline`、`sarif`、`annotate`（上传带批注的副本为 artifact）；CI 用失败的示例模板实际跑一遍 Action | 采纳 DeepSeek 的建议：布尔输入接受 true/1/yes/on。驳回：`format` 输入（Action 只服务 GitHub）、给 args 加引号解析（在输入说明里注明不支持引号）；它怀疑 `--annotate` 参数名写错，核对后没有问题 |
+| D121 | 不做 JUnit 格式 | 与 DeepSeek 第 11 轮一致：SARIF 已覆盖 GitHub，Code Quality 已覆盖 GitLab |

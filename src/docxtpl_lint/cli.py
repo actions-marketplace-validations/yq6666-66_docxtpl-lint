@@ -113,16 +113,83 @@ def render_github(reports: list[Report], lang: str = "en") -> str:
     return "\n".join(out)
 
 
+def _fingerprints(reports: list[Report]) -> dict[int, str]:
+    """Stable id per finding (same key as the baseline + occurrence), keyed by id(issue)."""
+    import hashlib
+
+    from .baseline import fingerprint
+
+    out: dict[int, str] = {}
+    seen: dict[str, int] = {}
+    for rep in reports:
+        for it in rep.issues:
+            base = f"{Path(rep.file).as_posix()}|{it.rule}|{fingerprint(rep, it)}"
+            k = seen.get(base, 0)
+            seen[base] = k + 1
+            out[id(it)] = hashlib.sha256(f"{base}|{k}".encode()).hexdigest()[:32]
+    return out
+
+
+def render_markdown(reports: list[Report], lang: str = "en") -> str:
+    """Markdown for a CI job summary / PR comment: one table per file with findings."""
+    n_err = sum(i.severity == "error" for r in reports for i in r.issues)
+    n_warn = sum(i.severity == "warning" for r in reports for i in r.issues)
+    zh = lang == "zh"
+    if not n_err and not n_warn:
+        return f"### docxtpl-lint\n\n✔ {len(reports)} " + ("个模板没有问题" if zh else "template(s) clean")
+    head = (
+        f"### docxtpl-lint\n\n{n_err} 个错误、{n_warn} 个警告，共 {len(reports)} 个模板\n"
+        if zh
+        else f"### docxtpl-lint\n\n{n_err} error(s), {n_warn} warning(s) in {len(reports)} template(s)\n"
+    )
+    cols = "| 规则 | 级别 | 位置 | 说明 |" if zh else "| Rule | Severity | Where | Message |"
+
+    def cell(t: str) -> str:
+        return t.replace("|", "\\|").replace("\n", " ")
+
+    parts = [head]
+    for rep in reports:
+        if not rep.issues:
+            continue
+        parts.append(f"\n**{cell(rep.file)}**\n\n{cols}\n|---|---|---|---|")
+        for it in rep.issues:
+            parts.append(
+                f"| [{it.rule}]({help_url(it.rule)}) | {it.severity} | {cell(it.location.human(lang))} | "
+                f"{cell(it.message_for(lang))} |"
+            )
+    return "\n".join(parts)
+
+
+def render_gitlab(reports: list[Report], lang: str = "en") -> str:
+    """GitLab Code Quality report (Code Climate subset). Paragraph number as the line."""
+    fps = _fingerprints(reports)
+    sev = {"error": "major", "warning": "minor"}
+    items = [
+        {
+            "description": f"[{it.location.human(lang)}] {it.message_for(lang)}",
+            "check_name": it.rule,
+            "fingerprint": fps[id(it)],
+            "severity": sev.get(it.severity, "info"),
+            "location": {"path": rep.file, "lines": {"begin": max(it.location.paragraph, 1)}},
+        }
+        for rep in reports
+        for it in rep.issues
+    ]
+    return json.dumps(items, ensure_ascii=False, indent=2)
+
+
 def render_sarif(reports: list[Report], lang: str = "en") -> str:
     """SARIF 2.1.0. A .docx has no lines, so the paragraph number is used as the
     line and the table-cell path is put in the message."""
     results = []
+    fps = _fingerprints(reports)
     for rep in reports:
         for it in rep.issues:
             loc = it.location
             results.append(
                 {
                     "ruleId": it.rule,
+                    "partialFingerprints": {"docxtplLint/v1": fps[id(it)]},
                     "level": it.severity,
                     "message": {"text": f"[{loc.human(lang)}] {it.message_for(lang)}"},
                     "locations": [
@@ -154,6 +221,16 @@ def render_sarif(reports: list[Report], lang: str = "en") -> str:
     )
 
 
+FORMATS = {
+    "text": None,
+    "json": render_json,
+    "github": render_github,
+    "sarif": render_sarif,
+    "gitlab": render_gitlab,
+    "markdown": render_markdown,
+}
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="docxtpl-lint",
@@ -174,7 +251,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON Schema used as the data contract (e.g. from `docxtpl-lint infer`); enables DTL304/DTL305",
     )
     ap.add_argument("--report-unused-data", action="store_true", help="also report unused top-level data keys (DTL302)")
-    ap.add_argument("--format", choices=["text", "json", "github", "sarif"], default="text")
+    ap.add_argument("--format", choices=list(FORMATS), default="text")
+    ap.add_argument("--output", "-o", metavar="FILE", help="write the report to FILE instead of stdout (UTF-8)")
+    ap.add_argument(
+        "--report",
+        action="append",
+        metavar="FORMAT:FILE",
+        help="also write a report in another format, e.g. --report sarif:out.sarif --report markdown:summary.md",
+    )
     ap.add_argument("--lang", choices=["en", "zh"], default="en", help="message language (default: en)")
     ap.add_argument("--select", help="comma separated rule ids/prefixes to enable, e.g. DTL1,DTL206")
     ap.add_argument("--ignore", help="comma separated rule ids/prefixes to disable")
@@ -561,20 +645,25 @@ def main(argv: list[str] | None = None) -> int:
                 n = annotate(rep, dst, args.lang)
                 print(f"docxtpl-lint: {dst} ({n} comment(s))", file=sys.stderr)
 
+    for spec in args.report or []:
+        fmt, _, path = spec.partition(":")
+        if fmt not in FORMATS or fmt == "text" or not path:
+            print(f"docxtpl-lint: --report expects FORMAT:FILE with FORMAT in {', '.join(FORMATS)}", file=sys.stderr)
+            return 2
+        Path(path).write_text(FORMATS[fmt](reports, args.lang) + "\n", encoding="utf-8")
     if args.statistics and args.format == "text":
-        print(render_statistics(reports))
-    elif args.format == "json":
-        print(render_json(reports, args.lang))
-    elif args.format == "github":
-        out = render_github(reports, args.lang)
-        if out:
-            print(out)
-    elif args.format == "sarif":
-        print(render_sarif(reports, args.lang))
+        main_out = render_statistics(reports)
+    elif args.format == "text":
+        tty = sys.stdout.isatty() and not args.output
+        color = not args.no_color and tty
+        context = args.context if args.context is not None else (1 if tty else 0)
+        main_out = render_text(reports, color, args.list_vars, args.lang, context)
     else:
-        color = not args.no_color and sys.stdout.isatty()
-        context = args.context if args.context is not None else (1 if sys.stdout.isatty() else 0)
-        print(render_text(reports, color, args.list_vars, args.lang, context))
+        main_out = FORMATS[args.format](reports, args.lang)
+    if args.output:
+        Path(args.output).write_text(main_out + "\n", encoding="utf-8")
+    elif main_out:
+        print(main_out)
 
     bad = {"error", "warning"} if args.warnings_as_errors else {"error"}
     return 1 if any(i.severity in bad for r in reports for i in r.issues) else 0

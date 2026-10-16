@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-16
+
+### Added
+- `--format markdown` (CI job summary / PR comment) and `--format gitlab` (GitLab Code Quality report).
+- Stable finding fingerprints (part + table cell + paragraph text + occurrence): GitLab `fingerprint` and SARIF `partialFingerprints`, unchanged when paragraphs are inserted elsewhere.
+- `--output FILE` and repeatable `--report FORMAT:FILE` (several reports from one run).
+- GitHub Action inputs: `summary` (Markdown job summary, on by default), `baseline`, `sarif` (path for `upload-sarif`), `annotate` (uploads copies of failing templates with Word comments as the `docxtpl-lint-annotated` artifact).
+
 ## [1.7.0] - 2026-10-16
 
 ### Added
@@ -159,7 +167,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.4.0...v1.5.0
