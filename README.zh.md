@@ -39,6 +39,19 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 1.9 新特性：稳定的 Python API
+
+```python
+from docxtpl_lint import check_context, lint
+
+lint("invoice.docx").raise_for_errors()           # 静态检查，用于测试或 CI
+res = check_context(tpl_bytes, ctx, jinja_env=env)  # 应用里渲染前的守卫
+if not res.ok:
+    log.error(res.to_dict())
+```
+
+遵循语义化版本（见 docs/api.md）。新增 `--fail-on error|warning|never`，`--warnings-as-errors` 已弃用，2.0 移除。
+
 ## 1.8 的新特性：CI 生态
 
 - GitHub Action 会在 job summary 里写一张 Markdown 问题表。新增输入：`baseline`、`sarif: docxtpl-lint.sarif`（配合 `github/codeql-action/upload-sarif`）、`annotate: true`（把带 Word 批注的问题模板副本上传为 artifact）。
@@ -154,12 +167,12 @@ docxtpl-lint infer contract.docx --pydantic models.py    # Pydantic v2 models
 
 | 退出码 | 含义 |
 |---|---|
-| 0 | 无错误（除非 `--warnings-as-errors`，否则允许有警告） |
+| 0 | 无错误（未达到 `--fail-on` 级别的发现；默认只有错误算失败） |
 | 1 | 发现错误 |
 | 2 | 参数错误、文件缺失、`.docx` / JSON 无法读取 |
 
 其他选项：`--select DTL1,DTL206`、`--ignore DTL2`（前缀匹配）、`--allow-cross-paragraph`、
-`--report-unused-data`、`--warnings-as-errors`、`--no-color`。
+`--report-unused-data`、`--fail-on error|warning|never`、`--no-color`。
 
 `--context N` 会打印周围段落及其表格位置，这样你无需打开 Word 就能找到位置。
 在终端中默认为 1，在 CI 日志和管道中默认为 0。
@@ -172,7 +185,7 @@ docxtpl-lint infer contract.docx --pydantic models.py    # Pydantic v2 models
 [tool.docxtpl-lint]
 ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
-warnings-as-errors = true
+fail-on = "warning"
 lang = "en"                           # or "zh"
 # also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env, autoescape
 ```
@@ -227,7 +240,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.8.0
+- uses: yq6666-66/docxtpl-lint@v1.9.0
   with:
     files: |
       templates/**/*.docx
@@ -242,7 +255,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.8.0
+    rev: v1.9.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

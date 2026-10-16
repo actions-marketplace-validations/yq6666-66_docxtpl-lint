@@ -195,3 +195,19 @@
 | D119 | 新增 `--output FILE` 和可重复的 `--report FORMAT:FILE` | 运行一次就能同时生成 GitHub 注解、SARIF 和 Markdown，Action 正是这样调用的 |
 | D120 | Action 新增输入 `summary`（默认开启）、`baseline`、`sarif`、`annotate`（上传带批注的副本为 artifact）；CI 用失败的示例模板实际跑一遍 Action | 采纳 DeepSeek 的建议：布尔输入接受 true/1/yes/on。驳回：`format` 输入（Action 只服务 GitHub）、给 args 加引号解析（在输入说明里注明不支持引号）；它怀疑 `--annotate` 参数名写错，核对后没有问题 |
 | D121 | 不做 JUnit 格式 | 与 DeepSeek 第 11 轮一致：SARIF 已覆盖 GitHub，Code Quality 已覆盖 GitLab |
+
+
+## v1.9 — Stable Python API (DeepSeek rounds 18–19)
+
+| # | Decision | Why / evidence |
+|---|---|---|
+| D122 | New `docxtpl_lint.api`: `lint()`, `check_context()`, `infer_schema()`, `Result`, `TemplateLintError`, `effective_autoescape()`; also exported at top level. Semver policy in docs/api.md | Apps need an in-process guard; until now only `lint_path` with internal kwargs was public |
+| D123 | `template` may be a path, bytes or a binary file object; a `str` is always a path; file objects are not closed | DeepSeek #9 (str ambiguity) accepted |
+| D124 | `check_context` stays and renders by default (`render=False` opt-out, `Result.rendered`) | DeepSeek wanted it folded into `lint`/off by default ("10–100× slower"). Measured: render ≈13 ms/template vs lint ≈1.4 ms over 40 official templates; the guard runs right before the app renders anyway. Kept as a distinct contract: lint never renders |
+| D125 | Never mutate the user's `jinja_env` | Verified by real render: docxtpl `render(jinja_env=env, autoescape=True)` sets `env.autoescape = True` on the caller's env. api and `verify` render through `env.overlay(autoescape=True)` |
+| D126 | Autoescape from the env: `effective_autoescape` = flag or env.autoescape; a callable is evaluated with name `None` | DeepSeek #5/#6. Bug fixed: CLI `--jinja-env` with an autoescaping env still reported DTL308. Callable case checked by render: `select_autoescape(default_for_string=False)` does NOT escape, so `bool(callable)` would have hidden real DTL308 |
+| D127 | `filters`/`tests` stay, unioned with the env's | DeepSeek #4 wanted env-only; rejected: CLI parity and users without importable envs. Precedence documented (union) |
+| D128 | `--fail-on error|warning|never` (config `fail-on`); `--warnings-as-errors` deprecated (stderr notice), removed in 2.0. `never` still exits 2 on unreadable input | DeepSeek #12 accepted for `never`; distinct exit codes per level rejected (would break existing exit-1 contract) |
+| D129 | Top-level `lint_path` NOT deprecated in 1.9 | DeepSeek #11: it is the only previously public API |
+| D130 | `config=True` magic and `infer_schema` rename rejected/omitted | No config param in api (explicit args only, #3); `infer_schema` really returns JSON Schema (`$schema` 2020-12), so the name is accurate (#8 rejected) |
+| D131 | `check_context` takes `filters`/`tests`; `Template` alias exported and includes bytearray | DeepSeek review of api.py #8/#10/#15 |

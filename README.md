@@ -45,6 +45,19 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 1.9: stable Python API
+
+```python
+from docxtpl_lint import check_context, lint
+
+lint("invoice.docx").raise_for_errors()           # static, in tests or CI
+res = check_context(tpl_bytes, ctx, jinja_env=env)  # right before rendering in your app
+if not res.ok:
+    log.error(res.to_dict())
+```
+
+Semver-stable (docs/api.md). `--fail-on error|warning|never` replaces the deprecated `--warnings-as-errors` (removed in 2.0).
+
 ## New in 1.8: CI ecosystem
 
 - The GitHub Action writes a Markdown table to the job summary. New inputs: `baseline`, `sarif: docxtpl-lint.sarif` (for `github/codeql-action/upload-sarif`), and `annotate: true` (failing templates with Word comments, uploaded as an artifact).
@@ -162,12 +175,12 @@ docxtpl-lint infer contract.docx --pydantic models.py    # Pydantic v2 models
 
 | exit code | meaning |
 |---|---|
-| 0 | no errors (warnings allowed unless `--warnings-as-errors`) |
+| 0 | no findings at the `--fail-on` level (default: errors only) |
 | 1 | errors found |
 | 2 | bad arguments, missing file, unreadable `.docx` / JSON |
 
 Other options: `--select DTL1,DTL206`, `--ignore DTL2` (prefix match), `--allow-cross-paragraph`,
-`--report-unused-data`, `--warnings-as-errors`, `--no-color`.
+`--report-unused-data`, `--fail-on error|warning|never`, `--no-color`.
 
 `--context N` prints the surrounding paragraphs with their table position, so you can find the spot without opening Word.
 It defaults to 1 in a terminal and 0 in CI logs and pipes.
@@ -180,7 +193,7 @@ Put defaults in the nearest `pyproject.toml`. Command-line options take preceden
 [tool.docxtpl-lint]
 ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
-warnings-as-errors = true
+fail-on = "warning"
 lang = "en"                           # or "zh"
 # also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env, autoescape
 ```
@@ -235,7 +248,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.8.0
+- uses: yq6666-66/docxtpl-lint@v1.9.0
   with:
     files: |
       templates/**/*.docx
@@ -250,7 +263,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.8.0
+    rev: v1.9.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

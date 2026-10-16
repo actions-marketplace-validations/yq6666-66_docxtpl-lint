@@ -1,7 +1,7 @@
 """Command line interface.
 
-Exit codes: 0 = no errors, 1 = errors found (or warnings with
-``--warnings-as-errors``), 2 = usage / IO error.
+Exit codes: 0 = no findings at the ``--fail-on`` level (default: error), 1 = findings
+at that level, 2 = usage / IO error (also with ``--fail-on never``).
 """
 
 from __future__ import annotations
@@ -263,7 +263,16 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--select", help="comma separated rule ids/prefixes to enable, e.g. DTL1,DTL206")
     ap.add_argument("--ignore", help="comma separated rule ids/prefixes to disable")
     ap.add_argument("--allow-cross-paragraph", action="store_true", help="accept tags spanning paragraphs (no DTL002)")
-    ap.add_argument("--warnings-as-errors", action="store_true", help="exit 1 on warnings too")
+    ap.add_argument(
+        "--fail-on",
+        choices=["error", "warning", "never"],
+        default=None,
+        help="lowest severity that makes the exit code 1 (default: error); never = always 0 unless "
+        "the input cannot be read (exit 2)",
+    )
+    ap.add_argument(
+        "--warnings-as-errors", action="store_true", help="deprecated alias of --fail-on warning (removed in 2.0)"
+    )
     ap.add_argument("--list-vars", action="store_true", help="print the data paths each template uses")
     ap.add_argument("--list-rules", action="store_true", help="print all rules and exit")
     ap.add_argument("--explain", metavar="RULE", help="explain one rule (e.g. DTL209) and exit")
@@ -331,14 +340,18 @@ def _load_env(spec: str) -> Any:
     return env
 
 
-def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str]]:
-    """Filter/test names from --filters/--tests and an optional --jinja-env MODULE:ATTR."""
+def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str], bool]:
+    """Filter/test names from --filters/--tests and an optional --jinja-env MODULE:ATTR, plus the
+    autoescape docxtpl will really use (the env's own setting counts, see api.effective_autoescape)."""
+    from .api import effective_autoescape
+
     filters, tests = _csv(args.filters), _csv(args.tests)
+    env = None
     if args.jinja_env:
         env = _load_env(args.jinja_env)
         filters |= set(env.filters)
         tests |= set(env.tests)
-    return filters, tests
+    return filters, tests, effective_autoescape(env, args.autoescape)
 
 
 SUBCOMMANDS = ("infer", "verify", "diff", "fix")
@@ -544,6 +557,12 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")
 
+    if args.warnings_as_errors:
+        print(
+            "docxtpl-lint: --warnings-as-errors / warnings-as-errors is deprecated and will be removed in 2.0; "
+            'use --fail-on warning / fail-on = "warning"',
+            file=sys.stderr,
+        )
     if args.explain:
         r = RULES.get(args.explain.upper())
         if r is None:
@@ -581,7 +600,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     try:
-        filters, tests = _custom_jinja(args)
+        filters, tests, autoescape = _custom_jinja(args)
     except Exception as exc:  # user code: report, never a traceback
         print(f"docxtpl-lint: cannot load --jinja-env {args.jinja_env}: {exc}", file=sys.stderr)
         return 2
@@ -602,7 +621,7 @@ def main(argv: list[str] | None = None) -> int:
                 schema=schema,
                 filters=filters,
                 tests=tests,
-                autoescape=args.autoescape,
+                autoescape=autoescape,
             )
         except Exception as exc:
             print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)
@@ -665,7 +684,8 @@ def main(argv: list[str] | None = None) -> int:
     elif main_out:
         print(main_out)
 
-    bad = {"error", "warning"} if args.warnings_as_errors else {"error"}
+    fail_on = args.fail_on or ("warning" if args.warnings_as_errors else "error")
+    bad = {"error": {"error"}, "warning": {"error", "warning"}, "never": set()}[fail_on]
     return 1 if any(i.severity in bad for r in reports for i in r.issues) else 0
 
 

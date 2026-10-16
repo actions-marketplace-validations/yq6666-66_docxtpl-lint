@@ -9,7 +9,7 @@ inputs:
     description: Newline-separated .docx paths or globs (`**` supported). Paths may contain spaces.
     required: true
   args:
-    description: Extra CLI arguments, e.g. "--data sample.json --warnings-as-errors" (split on spaces; no quoting)
+    description: Extra CLI arguments, e.g. "--data sample.json --fail-on warning" (split on spaces; no quoting)
     required: false
     default: ""
   python-version:

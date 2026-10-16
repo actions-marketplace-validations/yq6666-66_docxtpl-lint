@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-16
+
+### Added
+- Stable Python API `docxtpl_lint.api` (also top-level): `lint(template, data, ...)`, `check_context(template, context)` (lint + in-memory docxtpl render, a pre-render guard), `infer_schema(paths)`, `Result` (`issues`, `errors`, `warnings`, `ok`, `variables`, `rendered`, `raise_for_errors()`, `to_dict()`), `TemplateLintError`. Templates can be paths, bytes or binary file objects. Stability policy: docs/api.md.
+- `--fail-on error|warning|never` and config `fail-on`.
+
+### Fixed
+- `--jinja-env` with an autoescaping environment no longer reports DTL308; a callable autoescape (`select_autoescape`) is evaluated like docxtpl does.
+- `verify --autoescape --jinja-env` no longer changes your environment object (docxtpl sets `env.autoescape` in place; we render via an overlay).
+
+### Deprecated
+- `--warnings-as-errors` / `warnings-as-errors`: use `--fail-on warning`. Removed in 2.0.
+
 ## [1.8.0] - 2026-10-16
 
 ### Added
@@ -167,7 +180,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...v1.6.0

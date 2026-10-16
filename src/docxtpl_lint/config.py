@@ -9,7 +9,7 @@ Example::
     [tool.docxtpl-lint]
     ignore = ["DTL002"]
     data = ["tests/sample_context.json"]   # relative to pyproject.toml
-    warnings-as-errors = true
+    fail-on = "warning"
 """
 
 from __future__ import annotations
@@ -29,7 +29,8 @@ KEYS = {
     "data": (list, str),
     "allow-cross-paragraph": (bool,),
     "report-unused-data": (bool,),
-    "warnings-as-errors": (bool,),
+    "warnings-as-errors": (bool,),  # deprecated in 1.9, removed in 2.0
+    "fail-on": (str,),
     "lang": (str,),
     "context": (int,),
     "baseline": (str,),
@@ -78,6 +79,8 @@ def load_config(path: Path) -> dict[str, Any]:
             value = [str((path.parent / v).resolve()) for v in items]
         if key == "baseline":
             value = str((path.parent / value).resolve())
+        if key == "fail-on" and value not in ("error", "warning", "never"):
+            raise ConfigError(f"{path}: [tool.docxtpl-lint] fail-on must be 'error', 'warning' or 'never'")
         if key == "lang" and value not in ("en", "zh"):
             raise ConfigError(f"{path}: [tool.docxtpl-lint] lang must be 'en' or 'zh'")
         out[key.replace("-", "_")] = value

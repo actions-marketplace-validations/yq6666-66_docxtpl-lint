@@ -26,6 +26,31 @@ def token(n: int) -> str:
     return f"DTLV{n}Q"
 
 
+def _env_for(jinja_env: Any, autoescape: bool) -> tuple[Any, bool]:
+    """docxtpl's ``render(jinja_env=env, autoescape=True)`` sets ``env.autoescape = True`` on the
+    caller's environment. Render with an overlay instead so the user's env is never modified."""
+    if jinja_env is not None and autoescape:
+        return jinja_env.overlay(autoescape=True), False
+    return jinja_env, autoescape
+
+
+def render_check(src: Any, context: Any, jinja_env: Any = None, autoescape: bool = False) -> Issue | None:
+    """Render ``context`` once in memory; a DTL402 issue if docxtpl raises, else None."""
+    try:
+        from docxtpl import DocxTemplate
+    except ImportError as exc:  # pragma: no cover - depends on the environment
+        raise RuntimeError("rendering needs docxtpl: pip install 'docxtpl-lint[render]'") from exc
+    env, ae = _env_for(jinja_env, autoescape)
+    try:
+        doc = DocxTemplate(src)
+        doc.render(context, jinja_env=env, autoescape=ae)
+        doc.save(io.BytesIO())
+    except Exception as exc:
+        file = src if isinstance(src, str) else "<bytes>"
+        return Issue("DTL402", Location(file, "body", 0), "", {"error": f"{type(exc).__name__}: {exc}"})
+    return None
+
+
 def verify_path(
     path: str | Path,
     data: Any = None,
@@ -60,7 +85,8 @@ def verify_path(
         try:
             doc = DocxTemplate(file)
             ctx = ctx_fn(doc)
-            doc.render(ctx, jinja_env=jinja_env, autoescape=autoescape)
+            env, ae = _env_for(jinja_env, autoescape)
+            doc.render(ctx, jinja_env=env, autoescape=ae)
             buf = io.BytesIO()
             doc.save(buf)
         except Exception as exc:
