@@ -84,11 +84,11 @@ invoice.docx:body ¶1:7: error DTL401 `{{ total }}` was rendered by docxtpl but 
 
 ## Install
 
-Not on PyPI yet. Install from GitHub (a release tag or the wheel attached to a [release](https://github.com/yq6666-66/docxtpl-lint/releases)):
+Install from [PyPI](https://pypi.org/project/docxtpl-lint/):
 
 ```sh
-pip install "docxtpl-lint @ git+https://github.com/yq6666-66/docxtpl-lint@v1.0.0"
-pip install "docxtpl-lint[render] @ git+https://github.com/yq6666-66/docxtpl-lint@v1.0.0"   # + verify
+pip install docxtpl-lint
+pip install "docxtpl-lint[render]"   # + verify
 ```
 
 ## Usage
