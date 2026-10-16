@@ -45,6 +45,11 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 1.6: escaping and a stronger verify
+
+- **DTL308** (with `--data`): docxtpl renders with `autoescape=False` by default, so `Smith & Co` becomes `Smith  Co` and `<b>` cuts the paragraph, with no error. Use `render(ctx, autoescape=True)` (and `--autoescape`) or `{{ name|e }}`.
+- `verify` now renders the way your code does (`--jinja-env`, `--autoescape`, several `--data` files), checks `{{r}}` / `{{p}}` too, and can keep the output with `--out DIR`.
+
 ## New in 1.5: a more precise data contract
 
 - List and attribute filters feed the contract: `items|sum(attribute='price')` makes `items[].price` a number, and loops over `items|selectattr('ok')` keep the item fields.
@@ -167,7 +172,7 @@ ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
 lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env, autoescape
 ```
 
 Use `--config path/to/pyproject.toml` to pick a file, or `--no-config` to ignore it.
@@ -220,7 +225,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.5.0
+- uses: yq6666-66/docxtpl-lint@v1.6.0
   with:
     files: |
       templates/**/*.docx
@@ -232,7 +237,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.5.0
+    rev: v1.6.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

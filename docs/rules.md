@@ -48,6 +48,7 @@ or for one paragraph (v1.2; ids or prefixes such as `DTL2`):
 | [DTL305](#dtl305) | error | loop over a value the --schema declares as non-iterable |
 | [DTL306](#dtl306) | error | list filter applied to a non-list value from --data |
 | [DTL307](#dtl307) | warning | plain value for a {{r}} / {{p}} tag |
+| [DTL308](#dtl308) | error | data value with & or < printed without escaping |
 | [DTL401](#dtl401) | error | verify: output silently lost when rendered by docxtpl |
 | [DTL402](#dtl402) | error | verify: docxtpl fails to render the template |
 
@@ -544,6 +545,15 @@ Total: {{ total }}
 **What it means.** `{{r x }}` expects a `docxtpl.RichText` and `{{p x }}` a `Subdoc`, but the value of `x` in `--data` is a plain string or number. JSON cannot hold these objects, so this warning tells you that your Python code must build them before rendering. If you meant plain text, use `{{ x }}`.
 
 **docxtpl behaviour.** `A {{r x }} B` with `x = "plain"` renders `A  B`: the value disappears silently. `{{p x }}` with a string removes the paragraph.
+
+<a id="dtl308"></a>
+## DTL308 — data value with & or < printed without escaping
+
+**What it means.** A string in `--data` contains `&` or `<` and the template prints it without `|e`. `DocxTemplate.render()` uses `autoescape=False` by default, so the raw character goes into the XML.
+
+**Fix.** Render with `doc.render(context, autoescape=True)` and tell the linter with `--autoescape` (or `autoescape = true` in `[tool.docxtpl-lint]`), or escape the value: `{{ customer.name|e }}`.
+
+**docxtpl behaviour.** `Smith & Co` renders as `Smith  Co`; `<b>bold</b>` cuts off everything after it in the paragraph. No error is raised. `>` and quotes are harmless.
 
 <a id="dtl401"></a>
 ## DTL401 — verify: output silently lost when rendered by docxtpl

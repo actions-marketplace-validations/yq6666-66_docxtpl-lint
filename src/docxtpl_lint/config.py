@@ -36,6 +36,7 @@ KEYS = {
     "filters": (list, str),
     "tests": (list, str),
     "jinja-env": (str,),
+    "autoescape": (bool,),
 }
 
 

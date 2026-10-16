@@ -39,6 +39,11 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 1.6 的新特性：转义问题和更强的 verify
+
+- **DTL308**（配合 `--data`）：docxtpl 默认 `autoescape=False`，`Smith & Co` 会变成 `Smith  Co`，`<b>` 会截断整个段落，而且不报任何错。请用 `render(ctx, autoescape=True)`（并加 `--autoescape`），或写成 `{{ name|e }}`。
+- `verify` 现在可以按你代码的方式渲染（`--jinja-env`、`--autoescape`、多个 `--data` 文件），也会检查 `{{r}}` / `{{p}}`，还能用 `--out DIR` 保存渲染结果。
+
 ## 1.5 的新特性：更精确的数据契约
 
 - 列表过滤器和带属性的过滤器会写进契约：`items|sum(attribute='price')` 会把 `items[].price` 推为数字；遍历 `items|selectattr('ok')` 时元素字段不会丢。
@@ -159,7 +164,7 @@ ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
 lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env, autoescape
 ```
 
 使用 `--config path/to/pyproject.toml` 指定文件，或用 `--no-config` 忽略它。
@@ -212,7 +217,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.5.0
+- uses: yq6666-66/docxtpl-lint@v1.6.0
   with:
     files: |
       templates/**/*.docx
@@ -224,7 +229,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.5.0
+    rev: v1.6.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

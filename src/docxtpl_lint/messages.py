@@ -236,6 +236,17 @@ _RULES = [
         "请在 Python 里用 {object}(...) 构造（或改用 `{{{{ {path} }}}}`）",
     ),
     Rule(
+        "DTL308",
+        "error",
+        "data value with & or < printed without escaping",
+        '`{path}` contains `{char}` in --data ("{value}") and is printed without `|e`; docxtpl renders with '
+        "autoescape off by default, so the text is silently cut (`Smith & Co` -> `Smith  Co`, `<b>` drops the rest of "
+        "the paragraph). Render with autoescape=True (then pass --autoescape) or write `{{{{ {path}|e }}}}`",
+        '`{path}` 在 --data 里含有 `{char}`（"{value}"），输出时没有加 `|e`；docxtpl 默认不转义，文字会被静默截掉'
+        "（`Smith & Co` → `Smith  Co`，`<b>` 会吞掉段落剩余部分）。请用 autoescape=True 渲染（并加 --autoescape），"
+        "或写成 `{{{{ {path}|e }}}}`",
+    ),
+    Rule(
         "DTL401",
         "error",
         "verify: output silently lost when rendered by docxtpl",

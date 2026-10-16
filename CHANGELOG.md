@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-16
+
+### Added
+- DTL308 (error, with `--data`): a string with `&` or `<` printed without `|e`. docxtpl's default `autoescape=False` silently cuts it: `Smith & Co` → `Smith  Co`, and `<b>` drops the rest of the paragraph. Silence with `--autoescape` / `autoescape = true` if you render with `autoescape=True`.
+- `verify`: `{{r}}` / `{{p}}` outputs are checked with RichText / Subdoc sentinels.
+- `verify`: repeatable `--data`, plus `--autoescape`, `--jinja-env MODULE:ATTR` and `--out DIR` (save the rendered documents).
+
 ## [1.5.0] - 2026-10-16
 
 ### Added
@@ -146,7 +153,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.2.0...v1.3.0

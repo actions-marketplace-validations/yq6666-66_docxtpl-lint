@@ -160,3 +160,15 @@
 | D102 | 带属性的过滤器（`map(attribute=)`、`sum(attribute=)`、`sort(attribute=)`、`selectattr`、`groupby` 等）推出 `items[].attr`；`sum` 的属性推为 number | 实测：`sum(attribute='price')` 遇到字符串值会抛 TypeError。DeepSeek 认为 `selectattr('odd')` 的参数是测试名，这是错的：Jinja 的签名是 selectattr(attribute, test)，已写成测试（输出 "a"） |
 | D103 | 遍历"不改变元素"的过滤器链时保留元素作用域，例如 `for i in items|selectattr('ok')|sort(attribute='n')` | 之前 `i.title` 会从数据契约里丢掉；`batch`/`slice` 改变了元素，所以不在此列（与 DeepSeek 的看法一致） |
 | D104 | `{{r x}}` → RichText，`{{p x}}` → Subdoc：写入 schema（x-docxtpl-object）、Pydantic（字段注释）、diff（any → richtext 视为破坏性变更）；配合 --data 新增 DTL307（warning） | 实测：`A {{r x }} B` 中 x 为普通字符串或字典时，输出 "A  B"，值静默消失；`{{p x}}` 遇到字符串会删掉整个段落。DeepSeek 指出字典也不行，采纳 |
+
+
+## v1.6：转义问题和更强的 verify（DeepSeek 第 15 轮）
+
+| 编号 | 决定 | 实验（docxtpl 0.20.2） |
+|---|---|---|
+| D105 | 新增 DTL308（error，配合 --data）：数据里含 `&` 或 `<` 的字符串没加 `|e` 就输出 | 实测默认 autoescape=False 时：`Smith & Co` → `Smith  Co`，`a < b` → `a  b`，`<b>bold</b>` 之后的段落内容全部丢失；`>` 和引号没问题。加 `|e` 或用 autoescape=True 渲染都能正常输出 |
+| D106 | `--autoescape` / 配置项 `autoescape` 表示调用方用 autoescape=True 渲染，此时不报 DTL308 | — |
+| D107 | 不采纳 DeepSeek "DTL308 应该改成静态检查（不需要 --data）" | 统计：官方 40 个模板里，23 个文件共有 79 处未转义的输出，静态检查会全部报出来，无法使用。改为只在数据里真的出现 `&`/`<` 时报 |
+| D108 | 采纳 DeepSeek 指出的漏报：`~` 拼接、`+` 和 `x if c else y` 两个分支里的输出 | 已写成测试（拼接后输出 "Co: x  y "，`<i>` 吞掉了后面的内容） |
+| D109 | verify：`{{r}}` / `{{p}}` 改用 RichText / Subdoc 作为哨兵值，纳入 DTL401 检查；没装 docxcompose 时 Subdoc 退回 RichText，且不检查该路径 | 之前这两类标签完全不检查；现在 `{{r x }} {%p if y %}` 中被吞掉的 x 能被 verify 发现 |
+| D110 | verify 增加：可重复的 `--data`（每份数据渲染一次，DTL402 注明是第几份）、`--autoescape`、`--jinja-env`（用调用方真实的过滤器渲染）、`--out DIR`（保存渲染结果） | 与调用方的渲染方式一致，才能得出真实结论 |

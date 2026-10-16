@@ -11,6 +11,7 @@ import json
 import sys
 import zipfile
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .config import ConfigError, find_config, load_config
@@ -190,6 +191,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--config", help="pyproject.toml to read [tool.docxtpl-lint] from (default: nearest one)")
     ap.add_argument("--no-config", action="store_true", help="ignore [tool.docxtpl-lint] settings")
+    ap.add_argument(
+        "--autoescape", action="store_true", help="your code renders with autoescape=True (silences DTL308)"
+    )
     ap.add_argument("--filters", help="comma separated custom Jinja filter names your jinja_env provides (DTL104)")
     ap.add_argument("--tests", help="comma separated custom Jinja test names your jinja_env provides (DTL105)")
     ap.add_argument(
@@ -225,23 +229,29 @@ def _csv(v: object) -> set[str]:
     return {x.strip() for x in items if x.strip()}
 
 
+def _load_env(spec: str) -> Any:
+    """Import ``MODULE:ATTR``: a jinja2.Environment or a function returning one (runs user code)."""
+    import importlib
+
+    mod_name, _, attr = spec.partition(":")
+    if not attr:
+        raise ValueError("expected MODULE:ATTR, e.g. myapp.reports:jinja_env")
+    sys.path.insert(0, str(Path.cwd()))
+    try:
+        obj = getattr(importlib.import_module(mod_name), attr)
+    finally:
+        sys.path.pop(0)
+    env = obj() if callable(obj) and not hasattr(obj, "filters") else obj
+    if not hasattr(env, "filters") or not hasattr(env, "tests"):
+        raise TypeError(f"{spec} is not a jinja2.Environment")
+    return env
+
+
 def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str]]:
     """Filter/test names from --filters/--tests and an optional --jinja-env MODULE:ATTR."""
     filters, tests = _csv(args.filters), _csv(args.tests)
     if args.jinja_env:
-        import importlib
-
-        mod_name, _, attr = args.jinja_env.partition(":")
-        if not attr:
-            raise ValueError("expected MODULE:ATTR, e.g. myapp.reports:jinja_env")
-        sys.path.insert(0, str(Path.cwd()))
-        try:
-            obj = getattr(importlib.import_module(mod_name), attr)
-        finally:
-            sys.path.pop(0)
-        env = obj() if callable(obj) and not hasattr(obj, "filters") else obj
-        if not hasattr(env, "filters") or not hasattr(env, "tests"):
-            raise TypeError(f"{args.jinja_env} is not a jinja2.Environment")
+        env = _load_env(args.jinja_env)
         filters |= set(env.filters)
         tests |= set(env.tests)
     return filters, tests
@@ -307,13 +317,25 @@ def main_verify(argv: list[str]) -> int:
         "lost (DTL401) or a failing render (DTL402). Needs docxtpl.",
     )
     ap.add_argument("files", nargs="+")
-    ap.add_argument("--data", help="render with this JSON instead of inferred sentinel data (only DTL402)")
+    ap.add_argument(
+        "--data", action="append", help="render with this JSON instead of sentinel data (only DTL402); repeatable"
+    )
+    ap.add_argument("--autoescape", action="store_true", help="render with autoescape=True, like your code does")
+    ap.add_argument("--jinja-env", metavar="MODULE:ATTR", help="render with your jinja2.Environment (runs your code)")
+    ap.add_argument("--out", metavar="DIR", help="save the rendered documents to DIR")
     ap.add_argument("--format", choices=["text", "json"], default="text")
     ap.add_argument("--lang", choices=["en", "zh"], default="en")
     a = ap.parse_args(argv)
-    data = load_data(a.data) if a.data else None
+    contexts = [load_data(d) for d in a.data or []]
     try:
-        reports = [verify_path(f, data) for f in a.files]
+        env = _load_env(a.jinja_env) if a.jinja_env else None
+    except Exception as exc:
+        print(f"docxtpl-lint: cannot load --jinja-env {a.jinja_env}: {exc}", file=sys.stderr)
+        return 2
+    try:
+        reports = [
+            verify_path(f, contexts=contexts, autoescape=a.autoescape, jinja_env=env, out=a.out) for f in a.files
+        ]
     except RuntimeError as exc:
         print(f"docxtpl-lint: {exc}", file=sys.stderr)
         return 2
@@ -467,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
                 schema=schema,
                 filters=filters,
                 tests=tests,
+                autoescape=args.autoescape,
             )
         except Exception as exc:
             print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)

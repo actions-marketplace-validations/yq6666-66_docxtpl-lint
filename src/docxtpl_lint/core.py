@@ -624,6 +624,7 @@ class Analysis:
     sequences: list[tuple[str, Tag, str]] = field(default_factory=list)  # input of join/sum/map/…: (path, tag, filter)
     objects: dict[str, str] = field(default_factory=dict)  # {{r x}} -> RichText, {{p x}} -> Subdoc
     object_tags: list[tuple[str, Tag]] = field(default_factory=list)
+    raw_outputs: list[tuple[str, Tag]] = field(default_factory=list)  # printed without |e (DTL308)
 
 
 NUMERIC_FILTERS = {"round", "int", "float", "abs", "filesizeformat"}
@@ -635,6 +636,7 @@ PASSTHROUGH_FILTERS = {"selectattr", "rejectattr", "select", "reject", "sort", "
 # attribute=… / first positional argument names a field of each item
 ATTRIBUTE_FILTERS = {"map", "sum", "sort", "unique", "min", "max", "groupby", "selectattr", "rejectattr"}
 DOCX_OBJECTS = {"r": "RichText", "p": "Subdoc"}
+ESCAPE_FILTERS = {"e", "escape", "forceescape"}
 MAPPING_METHODS = {"items", "keys", "values"}
 
 
@@ -694,6 +696,24 @@ def analyse(tags: list[Tag]) -> Analysis:
             n = n.node
         return n
 
+    def printed(n: nodes.Node, scope: dict[str, str | None]) -> list[str]:
+        """Data paths whose text reaches the output unescaped: through filters other than |e,
+        `~` concatenation and both branches of `x if c else y` (DTL308)."""
+        if isinstance(n, nodes.Filter):
+            if n.name in ESCAPE_FILTERS or n.node is None:
+                return []
+            return printed(n.node, scope)
+        if isinstance(n, nodes.Concat):
+            return [p for x in n.nodes for p in printed(x, scope)]
+        if isinstance(n, nodes.Add):
+            return printed(n.left, scope) + printed(n.right, scope)
+        if isinstance(n, nodes.CondExpr):
+            return printed(n.expr1, scope) + (printed(n.expr2, scope) if n.expr2 is not None else [])
+        if isinstance(n, nodes.Name | nodes.Getattr | nodes.Getitem):
+            p = path_of(n, scope)
+            return [p] if p else []
+        return []
+
     def tag_for(n: nodes.Node) -> Tag:
         return kept[min(max(n.lineno - 1, 0), len(kept) - 1)]
 
@@ -751,6 +771,11 @@ def analyse(tags: list[Tag]) -> Analysis:
                 if ap:
                     res.numeric.add(ap)
         if isinstance(n, nodes.Output):
+            for c in n.nodes:
+                if isinstance(c, nodes.TemplateData) or tag_for(c).prefix in DOCX_OBJECTS:
+                    continue  # RichText / Subdoc escape their own text
+                for rp in printed(c, scope):
+                    res.raw_outputs.append((rp, tag_for(c)))
             for c in n.nodes:
                 if isinstance(c, nodes.Name | nodes.Getattr | nodes.Getitem):
                     op_ = path_of(c, scope)
@@ -936,7 +961,9 @@ def _type_name(v: Any) -> str:
     )
 
 
-def check_data(file: str, an: Analysis, contexts: list[Any], report_unused: bool = False) -> list[Issue]:
+def check_data(
+    file: str, an: Analysis, contexts: list[Any], report_unused: bool = False, autoescape: bool = False
+) -> list[Issue]:
     """DTL301/303 (and DTL302 if ``report_unused``) against one or more sample contexts.
 
     With several contexts (e.g. one shared JSON per customer type) a path is only
@@ -965,6 +992,23 @@ def check_data(file: str, an: Analysis, contexts: list[Any], report_unused: bool
                     _loc(file, tg.para, tg.col),
                     tg.raw,
                     {"path": path.replace("[]", "[*]"), "type": _type_name(bad[0])},
+                )
+            )
+    seen_raw: set[str] = set()
+    for path, tg in [] if autoescape else an.raw_outputs:
+        if path in seen_raw:
+            continue
+        vals = [v for d in contexts for v in (_resolve(d, path) or [])]
+        hit = next((v for v in vals if isinstance(v, str) and ("&" in v or "<" in v)), None)
+        if hit is not None:
+            seen_raw.add(path)
+            ch = "&" if "&" in hit else "<"
+            issues.append(
+                Issue(
+                    "DTL308",
+                    _loc(file, tg.para, tg.col),
+                    tg.raw,
+                    {"path": path.replace("[]", "[*]"), "char": ch, "value": hit[:30]},
                 )
             )
     seen_seq: set[str] = set()
@@ -1015,6 +1059,7 @@ def lint_path(
     schema: dict[str, Any] | None = None,
     filters: set[str] | None = None,
     tests: set[str] | None = None,
+    autoescape: bool = False,
 ) -> Report:
     """Lint one ``.docx`` template.
 
@@ -1046,7 +1091,7 @@ def lint_path(
         issues.extend(check_jinja(file, an, filters, tests))
     ctxs = list(contexts or []) + ([data] if data is not None else [])
     if ctxs:
-        issues.extend(check_data(file, an, ctxs, report_unused_data))
+        issues.extend(check_data(file, an, ctxs, report_unused_data, autoescape))
     if schema is not None:
         from .contract import check_schema
 
