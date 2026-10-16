@@ -29,7 +29,6 @@ KEYS = {
     "data": (list, str),
     "allow-cross-paragraph": (bool,),
     "report-unused-data": (bool,),
-    "warnings-as-errors": (bool,),  # deprecated in 1.9, removed in 2.0
     "fail-on": (str,),
     "lang": (str,),
     "context": (int,),
@@ -68,6 +67,10 @@ def load_config(path: Path) -> dict[str, Any]:
         raise ConfigError(f"{path}: {exc}") from exc
     out: dict[str, Any] = {}
     for key, value in raw.items():
+        if key == "warnings-as-errors":
+            raise ConfigError(
+                f'{path}: [tool.docxtpl-lint] warnings-as-errors was removed in 2.0; use fail-on = "warning"'
+            )
         if key not in KEYS:
             raise ConfigError(f"{path}: unknown key [tool.docxtpl-lint] {key!r}; allowed: {', '.join(KEYS)}")
         if (isinstance(value, bool) and bool not in KEYS[key]) or not isinstance(value, KEYS[key]):

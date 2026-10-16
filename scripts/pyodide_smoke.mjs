@@ -13,7 +13,7 @@ py.FS.writeFile("/tmp/t.docx", fs.readFileSync(path.join(site, "examples", "issu
 const text = await py.runPythonAsync(`
 import micropip
 await micropip.install("emfs:/tmp/${wheel}", deps=False)
-from docxtpl_lint import lint_path
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import render_text
 rep = lint_path("/tmp/t.docx")
 rep.file = "issue378_unclosed.docx"

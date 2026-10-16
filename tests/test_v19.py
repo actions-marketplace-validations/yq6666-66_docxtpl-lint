@@ -109,7 +109,7 @@ def test_infer_schema_is_json_schema(tmp_path):
 
 
 def test_top_level_exports():
-    for name in ("lint", "check_context", "infer_schema", "Result", "TemplateLintError", "lint_path"):
+    for name in ("lint", "check_context", "infer_schema", "Result", "TemplateLintError"):
         assert hasattr(docxtpl_lint, name)
 
 
@@ -125,8 +125,8 @@ def test_fail_on(tmp_path, capsys):
     assert main([str(bad), "--fail-on", "never"]) == 0
     assert main([str(tmp_path / "missing.docx"), "--fail-on", "never"]) == 2
     capsys.readouterr()
-    assert main([*args, "--warnings-as-errors"]) == 1
-    assert "deprecated" in capsys.readouterr().err
+    assert main([*args, "--warnings-as-errors"]) == 2
+    assert "removed in 2.0" in capsys.readouterr().err
 
 
 def test_fail_on_config(tmp_path, monkeypatch):

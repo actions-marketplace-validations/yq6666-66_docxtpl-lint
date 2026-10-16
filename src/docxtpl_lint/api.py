@@ -44,6 +44,7 @@ class Result:
     issues: list[Issue] = field(default_factory=list)
     variables: list[str] = field(default_factory=list)  # data paths the template references
     rendered: bool = False  # True when check_context actually rendered with docxtpl
+    _report: Report | None = field(default=None, repr=False, compare=False)
 
     @property
     def errors(self) -> list[Issue]:
@@ -67,8 +68,11 @@ class Result:
         return self
 
     def to_dict(self, lang: str = "en") -> dict[str, Any]:
-        """Same shape as one entry of ``files`` in ``--format json``."""
-        return {"file": self.file, "issues": [i.to_dict(lang) for i in self.issues], "variables": self.variables}
+        """Same as one entry of ``files`` in ``--format json`` (issues include ``fingerprint``)."""
+        rep = Report(self.file, list(self.issues), list(self.variables))
+        if self._report is not None:
+            rep.paragraphs = self._report.paragraphs
+        return file_dict(rep, lang)
 
 
 def effective_autoescape(jinja_env: Any = None, autoescape: bool = False) -> bool:
@@ -95,7 +99,7 @@ def _source(template: Template) -> tuple[Any, str]:
 def _report(rep: Report, name: str) -> Result:
     if rep.file != name:
         rep.issues = [_rename(i, name) for i in rep.issues]
-    return Result(name, list(rep.issues), list(rep.variables))
+    return Result(name, list(rep.issues), list(rep.variables), _report=rep)
 
 
 def _rename(i: Issue, name: str) -> Issue:
@@ -170,7 +174,7 @@ def check_context(
         raw = src.getvalue()
         src = io.BytesIO(raw)
     res = lint(src, context, jinja_env=jinja_env, filters=filters, tests=tests, autoescape=autoescape)
-    res = Result(name, [_rename(i, name) for i in res.issues], res.variables)
+    res = Result(name, [_rename(i, name) for i in res.issues], res.variables, _report=res._report)
     if not render:
         return res
     from .verify import render_check
@@ -188,3 +192,16 @@ def infer_schema(templates: Iterable[str | Path], title: str = "docxtpl template
     from .contract import infer_tree, to_schema
 
     return to_schema(infer_tree(list(templates)), title)
+
+
+def file_dict(rep: Report, lang: str = "en", fps: dict[int, str] | None = None) -> dict[str, Any]:
+    """One ``files[]`` entry of the JSON format (also api.Result.to_dict). Each issue carries
+    ``fingerprint`` (2.0): the same stable id as SARIF partialFingerprints / GitLab."""
+    from .baseline import fingerprints
+
+    fps = fingerprints([rep]) if fps is None else fps
+    return {
+        "file": rep.file,
+        "issues": [{**i.to_dict(lang), "fingerprint": fps.get(id(i), "")} for i in rep.issues],
+        "variables": rep.variables,
+    }

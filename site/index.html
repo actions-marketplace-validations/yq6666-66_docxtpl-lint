@@ -54,7 +54,8 @@ const ready = (async () => {
   await py.runPythonAsync(`
 import micropip
 await micropip.install("emfs:/tmp/${wheel}", deps=False)
-from docxtpl_lint import lint_path, __version__
+from docxtpl_lint import __version__
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import render_text
 def run(path, name, lang, mode="lint"):
     import json

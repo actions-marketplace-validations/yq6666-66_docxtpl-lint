@@ -5,7 +5,7 @@ from docx import Document
 from rule_cases import CASES
 from rule_cases import build as build_case
 
-from docxtpl_lint import lint_path
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
 from docxtpl_lint.messages import RULES
 from docxtpl_lint.reader import CellPos
@@ -216,7 +216,8 @@ def test_cli_warnings_policy(fx, tmp_path):
     p = tmp_path / "w.docx"
     build_case(next(c for c in CASES if c.name == "cross_para_warn"), p)
     assert main([str(p)]) == 0
-    assert main([str(p), "--warnings-as-errors"]) == 1
+    assert main([str(p), "--fail-on", "warning"]) == 1
+    assert main([str(p), "--warnings-as-errors"]) == 2  # removed in 2.0
 
 
 def test_cli_select_ignore(fx):

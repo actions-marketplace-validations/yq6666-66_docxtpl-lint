@@ -39,6 +39,10 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 2.0 新特性：verify 与 lint 结论一致
+
+`verify` 现在读取 `[tool.docxtpl-lint]`，支持 lint 的全部输出选项（SARIF、GitHub、GitLab、Markdown、基线、`--fail-on`）。配置里设置了自定义 `jinja-env` 时，verify 会用它渲染，不再误报 DTL402。`--warnings-as-errors` 已删除（改用 `--fail-on warning`）；JSON 里的每个问题都带稳定的 `fingerprint`；`lint_path` 已弃用，请改用 `lint`。升级说明见 [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md)。
+
 ## 1.9 新特性：稳定的 Python API
 
 ```python
@@ -103,7 +107,7 @@ if not res.ok:
 |---|---|---|
 | 1 | `docxtpl-lint infer a.docx b.docx -o schema.json --sample sample.json` | 模板的**数据契约，以 JSON Schema 表示**（来自 `for` 循环的列表、嵌套字段、来自 `round`/算术/比较的数字、来自 `is defined`/`default` 的可选字段），跨模板合并，每个字段带 `x-docxtpl-templates`，外加可渲染的示例数据 |
 | 2 | `docxtpl-lint verify a.docx` | **渲染等价性检查**：用真正的 docxtpl 和唯一哨兵值渲染，然后报告每一个静默消失的 `{{ value }}`（DTL401）或渲染失败（DTL402）。需要 `pip install "docxtpl-lint[render]"` |
-| 3 | `docxtpl-lint diff old.docx new.docx --fail-on-breaking` | **模板版本之间的契约差异**：新增必填字段、列表 ↔ 对象变更、可选 → 必填属于破坏性变更；移除字段不属于；重命名会给出提示 |
+| 3 | `docxtpl-lint diff old.docx new.docx --fail-on breaking` | **模板版本之间的契约差异**：新增必填字段、列表 ↔ 对象变更、可选 → 必填属于破坏性变更；移除字段不属于；重命名会给出提示 |
 | 4 | `docxtpl-lint a.docx --schema schema.json` | **模式一致性**：每个变量都必须在契约中声明（DTL304），循环必须遍历数组（DTL305） |
 | 5 | `docxtpl-lint fix a.docx` | **以统一 diff 形式给出的修复建议**：`{% tr` → `{%tr`、前缀不匹配、`endfro` → `endfor`、`iff` → `if`、`custmer` → `customer`（配合 `--data`）。`.docx` 永远不会被改写；每种修复都会通过应用它并用 docxtpl 渲染来测试 |
 
@@ -155,7 +159,7 @@ docxtpl-lint --explain DTL209                           # 规则说明及示例�
 docxtpl-lint infer contract.docx -o schema.json --sample sample.json
 docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
-docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
+docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on breaking
 docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs
 docxtpl-lint fix contract.docx --write fixed.docx         # apply safe fixes to a copy
 docxtpl-lint templates/*.docx --statistics               # count per rule
@@ -240,7 +244,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.9.1
+- uses: yq6666-66/docxtpl-lint@v2.0.0
   with:
     files: |
       templates/**/*.docx
@@ -255,7 +259,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.9.1
+    rev: v2.0.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

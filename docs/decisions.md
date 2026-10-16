@@ -213,3 +213,18 @@
 | D131 | `check_context` takes `filters`/`tests`; `Template` alias exported and includes bytearray | DeepSeek review of api.py #8/#10/#15 |
 
 **D132.** Ship the 1.9 line as **1.9.1** and leave the unreleased `v1.9.0` tag in place. The pushed v1.9.0 tag failed CI only on `ruff format --check` of README code blocks (local ruff did not format Markdown). Moving a pushed tag rewrites remote history, so a new patch version was cut instead; 1.9.0 was never on PyPI or a GitHub Release. Local `check.sh` now runs `ruff format --check .` on the whole repo like CI.
+
+
+## v2.0: one justified break plus housekeeping (DeepSeek rounds 20–21)
+
+| # | Decision | Why / evidence |
+|---|---|---|
+| D133 | `verify` reads `[tool.docxtpl-lint]` and shares lint's parser: all six formats, `--output`, `--report`, `--select`/`--ignore`, `--fail-on`, `--baseline`/`--write-baseline`, `--annotate`, `--config`/`--no-config`. **Breaking**: config can change verify's results and exit code | Real render: with `jinja-env` set in config (custom filter `money`), lint was clean but 1.x verify rendered without the env and reported DTL402 "No filter named 'money'", a false failure. DeepSeek: "the only candidate with real user-facing value". `verify --no-config` gives the 1.x behaviour |
+| D134 | Config `data` is NOT applied to verify | DeepSeek #2 and our own concern: data switches verify from sentinel mode to user-data mode, which silently drops the DTL401 check (test_verify_ignores_config_data) |
+| D135 | Lint-only flags (`--schema`, `--filters`, `--tests`, `--list-vars`, …) are hidden from `verify -h` and exit 2 if given | DeepSeek review #7 |
+| D136 | `--warnings-as-errors` and config `warnings-as-errors` removed (announced in 1.9). Both give exit 2 with the replacement | Ignoring the old key silently would weaken a CI gate without notice, so it is rejected loudly. DeepSeek review #6 ("downgrade to a warning") rejected for that reason |
+| D137 | Top-level `docxtpl_lint.lint_path` gives a DeprecationWarning (PEP 562); removed in 3.0 | Follows the 1.9 policy: deprecate in a major, remove in the next |
+| D138 | JSON issues and `Result.to_dict()` get `fingerprint` (same id as SARIF/GitLab); `schema_version` stays 1 | Additive, so no bump (DeepSeek #5). Fingerprint code moved to `baseline.fingerprints`; the api no longer imports cli (review #2) |
+| D139 | `diff --fail-on breaking|change|never`; `--fail-on-breaking` is a deprecated alias (removal 3.0); conflicting flags exit 2 | DeepSeek #7: deprecate rather than break |
+| D140 | Dropped: `--format auto` (DeepSeek #6, no user request, CI-detection footguns) and config for `fix` (it has no rules affected by filters/tests/autoescape) | |
+| D141 | Rejected review #9 ("verify ignores the env's autoescape") | verify renders with the env itself, so docxtpl applies the env's autoescape exactly as the user's app would |

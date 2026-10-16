@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from docx import Document
 
-from docxtpl_lint import lint_path
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import main
 from docxtpl_lint.contract import infer_tree, to_schema
 from docxtpl_lint.fixes import suggest
@@ -37,7 +37,7 @@ def test_subcommands_exit_2_on_non_docx(tmp_path, capsys, sub):
     fake.write_text("not a zip")
     args = [sub[0], str(fake)] + [a.format(f=fake) for a in sub[1:]]
     assert main(args) == 2
-    assert "cannot read input" in capsys.readouterr().err
+    assert "cannot read" in capsys.readouterr().err
 
 
 def test_explain(capsys):

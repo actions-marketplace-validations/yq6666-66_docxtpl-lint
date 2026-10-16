@@ -52,7 +52,7 @@ def test_config_unknown_key_is_error(tmp_path, monkeypatch, capsys):
 
 
 def test_config_wrong_type(tmp_path):
-    (tmp_path / "pyproject.toml").write_text("[tool.docxtpl-lint]\nwarnings-as-errors = 'yes'\n")
+    (tmp_path / "pyproject.toml").write_text("[tool.docxtpl-lint]\nfail-on = true\n")
     with pytest.raises(ConfigError):
         load_config(tmp_path / "pyproject.toml")
 

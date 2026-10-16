@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-16
+
+Migration guide: [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md).
+
+### Changed (breaking)
+- `verify` reads `[tool.docxtpl-lint]` (`jinja-env`, `autoescape`, `select`, `ignore`, `fail-on`, `baseline`, `lang`, …, but not `data`), so it renders like lint checks. Before, a project with `jinja-env` in its config got false DTL402 from verify. `verify --no-config` restores 1.x behaviour.
+- `verify` supports every lint output option: `--format text|json|github|sarif|gitlab|markdown`, `--output`, `--report`, `--select`/`--ignore`, `--fail-on`, `--baseline`/`--write-baseline`, `--annotate`.
+
+### Removed
+- `--warnings-as-errors` and config `warnings-as-errors` (deprecated in 1.9). Use `--fail-on warning` / `fail-on = "warning"`.
+
+### Added
+- `fingerprint` on every JSON issue and in `Result.to_dict()` (same id as SARIF `partialFingerprints` and GitLab).
+- `diff --fail-on breaking|change|never`.
+
+### Deprecated (removal in 3.0)
+- `docxtpl_lint.lint_path`: use `docxtpl_lint.lint`.
+- `diff --fail-on-breaking`: use `--fail-on breaking`.
+
 ## [1.9.1] - 2026-10-16
 
 First release of the 1.9 line. The `v1.9.0` tag was pushed but never released: CI's `ruff format --check` (which also formats code blocks in README) failed on it, so 1.9.0 is not on PyPI. 1.9.1 = 1.9.0 + README formatting.
@@ -182,7 +201,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.1...v2.0.0
 [1.9.1]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...v1.9.1
 [1.8.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...v1.7.0

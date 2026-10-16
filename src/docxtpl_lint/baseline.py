@@ -97,3 +97,16 @@ def apply(path: str | Path, data: dict[str, Any], reports: list[Report]) -> tupl
         rep.issues = kept
     stale = sum(n for (f, _, _), n in budget.items() if f in seen_files and n > 0)
     return suppressed, stale
+
+
+def fingerprints(reports: list[Report]) -> dict[int, str]:
+    """Stable id per finding (same key as the baseline + occurrence), keyed by id(issue)."""
+    out: dict[int, str] = {}
+    seen: dict[str, int] = {}
+    for rep in reports:
+        for it in rep.issues:
+            base = f"{Path(rep.file).as_posix()}|{it.rule}|{fingerprint(rep, it)}"
+            k = seen.get(base, 0)
+            seen[base] = k + 1
+            out[id(it)] = hashlib.sha256(f"{base}|{k}".encode()).hexdigest()[:32]
+    return out

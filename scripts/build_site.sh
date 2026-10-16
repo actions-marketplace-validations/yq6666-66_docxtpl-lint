@@ -11,7 +11,7 @@ printf '{"wheel": "%s"}\n' "$(basename "$wheel")" > _site/wheel.json
 # CPython reference output; the Pyodide smoke test must produce exactly the same text
 python - <<'PY'
 from pathlib import Path
-from docxtpl_lint import lint_path
+from docxtpl_lint.core import lint_path
 from docxtpl_lint.cli import render_text
 rep = lint_path("_site/examples/issue378_unclosed.docx")
 rep.file = "issue378_unclosed.docx"

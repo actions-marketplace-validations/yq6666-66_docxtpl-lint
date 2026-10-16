@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from docxtpl_lint import lint_path  # noqa: E402
+from docxtpl_lint.core import lint_path  # noqa: E402
 
 
 def run(templates: Path, expected: dict) -> dict:

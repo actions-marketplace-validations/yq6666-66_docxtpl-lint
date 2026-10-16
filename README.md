@@ -45,6 +45,10 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 2.0: verify and lint agree
+
+`verify` now reads `[tool.docxtpl-lint]` and supports every lint output option (SARIF, GitHub, GitLab, Markdown, baseline, `--fail-on`). With a custom `jinja-env` in your config, verify renders through it instead of failing with a false DTL402. `--warnings-as-errors` is gone (use `--fail-on warning`), JSON findings carry a stable `fingerprint`, and `lint_path` is deprecated in favour of `lint`. Upgrade notes: [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md).
+
 ## New in 1.9: stable Python API
 
 ```python
@@ -109,7 +113,7 @@ Five things no other docxtpl tool does (see [docs/PLAN-v1.0.md](docs/PLAN-v1.0.m
 |---|---|---|
 | 1 | `docxtpl-lint infer a.docx b.docx -o schema.json --sample sample.json` | the template's **data contract as JSON Schema** (lists from `for` loops, nested fields, numbers from `round`/arithmetic/comparisons, optional fields from `is defined`/`default`), merged across templates with `x-docxtpl-templates` per field, plus sample data that renders |
 | 2 | `docxtpl-lint verify a.docx` | **render-equivalence check**: renders with the real docxtpl and unique sentinel values, then reports every `{{ value }}` that silently vanished (DTL401) or a render that fails (DTL402). Needs `pip install "docxtpl-lint[render]"` |
-| 3 | `docxtpl-lint diff old.docx new.docx --fail-on-breaking` | **contract diff between template versions**: new required fields, list ↔ object changes, optional → required are breaking; removed fields are not; renames are hinted |
+| 3 | `docxtpl-lint diff old.docx new.docx --fail-on breaking` | **contract diff between template versions**: new required fields, list ↔ object changes, optional → required are breaking; removed fields are not; renames are hinted |
 | 4 | `docxtpl-lint a.docx --schema schema.json` | **schema conformance**: every variable must be declared in the contract (DTL304), loops must be over arrays (DTL305) |
 | 5 | `docxtpl-lint fix a.docx` | **fix suggestions as unified diffs**: `{% tr` → `{%tr`, mismatched prefixes, `endfro` → `endfor`, `iff` → `if`, `custmer` → `customer` (with `--data`). The `.docx` is never rewritten; every fix kind is tested by applying it and rendering with docxtpl |
 
@@ -163,7 +167,7 @@ docxtpl-lint --explain DTL209                           # what a rule means, wit
 docxtpl-lint infer contract.docx -o schema.json --sample sample.json
 docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
-docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
+docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on breaking
 docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs
 docxtpl-lint fix contract.docx --write fixed.docx         # apply safe fixes to a copy
 docxtpl-lint templates/*.docx --statistics               # count per rule
@@ -248,7 +252,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.9.1
+- uses: yq6666-66/docxtpl-lint@v2.0.0
   with:
     files: |
       templates/**/*.docx
@@ -263,7 +267,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.9.1
+    rev: v2.0.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

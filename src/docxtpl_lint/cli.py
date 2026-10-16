@@ -1,6 +1,6 @@
 """Command line interface.
 
-Exit codes: 0 = no findings at the ``--fail-on`` level (default: error), 1 = findings
+Exit codes (lint and verify): 0 = no findings at the ``--fail-on`` level (default: error), 1 = findings
 at that level, 2 = usage / IO error (also with ``--fail-on never``).
 """
 
@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .api import file_dict
+from .baseline import fingerprints as _fingerprints
 from .config import ConfigError, find_config, load_config
 from .core import Report, lint_path, load_data
 from .messages import RULES, help_url
@@ -76,15 +78,13 @@ def render_statistics(reports: list[Report]) -> str:
 
 
 def render_json(reports: list[Report], lang: str = "en") -> str:
+    fps = _fingerprints(reports)
     return json.dumps(
         {
             "schema_version": JSON_SCHEMA_VERSION,
             "tool": "docxtpl-lint",
             "version": __version__,
-            "files": [
-                {"file": r.file, "issues": [i.to_dict(lang) for i in r.issues], "variables": r.variables}
-                for r in reports
-            ],
+            "files": [file_dict(r, lang, fps) for r in reports],
         },
         ensure_ascii=False,
         indent=2,
@@ -111,23 +111,6 @@ def render_github(reports: list[Report], lang: str = "en") -> str:
                 f"{_gh_escape(it.location.human(lang) + ': ' + it.message_for(lang))}"
             )
     return "\n".join(out)
-
-
-def _fingerprints(reports: list[Report]) -> dict[int, str]:
-    """Stable id per finding (same key as the baseline + occurrence), keyed by id(issue)."""
-    import hashlib
-
-    from .baseline import fingerprint
-
-    out: dict[int, str] = {}
-    seen: dict[str, int] = {}
-    for rep in reports:
-        for it in rep.issues:
-            base = f"{Path(rep.file).as_posix()}|{it.rule}|{fingerprint(rep, it)}"
-            k = seen.get(base, 0)
-            seen[base] = k + 1
-            out[id(it)] = hashlib.sha256(f"{base}|{k}".encode()).hexdigest()[:32]
-    return out
 
 
 def render_markdown(reports: list[Report], lang: str = "en") -> str:
@@ -231,10 +214,19 @@ FORMATS = {
 }
 
 
-def build_parser() -> argparse.ArgumentParser:
+VERIFY_ONLY_LINT_FLAGS = ("schema", "report_unused_data", "allow_cross_paragraph", "list_vars", "filters", "tests")
+
+
+def build_parser(verify: bool = False) -> argparse.ArgumentParser:
+    """The lint parser. ``verify`` (2.0) shares it, so both read the same config and support the
+    same output formats, baseline, --select/--ignore and --fail-on; it adds --out."""
     ap = argparse.ArgumentParser(
-        prog="docxtpl-lint",
-        description="Static linter for docxtpl (python-docx-template) Word templates.",
+        prog="docxtpl-lint verify" if verify else "docxtpl-lint",
+        description="Render each template with real docxtpl (sentinel data, or --data) and report output that is "
+        "silently lost (DTL401) or a failing render (DTL402). Needs docxtpl. Reads [tool.docxtpl-lint] like lint, "
+        "except `data` (it would switch off the DTL401 check)."
+        if verify
+        else "Static linter for docxtpl (python-docx-template) Word templates.",
         epilog="subcommands: infer (data contract -> JSON Schema + sample), verify (render with docxtpl and find "
         "silently lost output), diff (contract changes between two template versions), fix (suggested "
         "fixes as diffs). Run `docxtpl-lint <subcommand> -h`.",
@@ -269,9 +261,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="lowest severity that makes the exit code 1 (default: error); never = always 0 unless "
         "the input cannot be read (exit 2)",
-    )
-    ap.add_argument(
-        "--warnings-as-errors", action="store_true", help="deprecated alias of --fail-on warning (removed in 2.0)"
     )
     ap.add_argument("--list-vars", action="store_true", help="print the data paths each template uses")
     ap.add_argument("--list-rules", action="store_true", help="print all rules and exit")
@@ -312,6 +301,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--no-color", action="store_true")
     ap.add_argument("--version", action="version", version=__version__)
+    if verify:
+        ap.add_argument("--out", metavar="DIR", help="save the rendered documents to DIR")
+        for act in ap._actions:  # lint-only flags: accepted by the shared parser, rejected, not advertised
+            if act.dest in VERIFY_ONLY_LINT_FLAGS:
+                act.help = argparse.SUPPRESS
     return ap
 
 
@@ -340,7 +334,7 @@ def _load_env(spec: str) -> Any:
     return env
 
 
-def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str], bool]:
+def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str], bool, Any]:
     """Filter/test names from --filters/--tests and an optional --jinja-env MODULE:ATTR, plus the
     autoescape docxtpl will really use (the env's own setting counts, see api.effective_autoescape)."""
     from .api import effective_autoescape
@@ -351,7 +345,7 @@ def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str], bool]:
         env = _load_env(args.jinja_env)
         filters |= set(env.filters)
         tests |= set(env.tests)
-    return filters, tests, effective_autoescape(env, args.autoescape)
+    return filters, tests, effective_autoescape(env, args.autoescape), env
 
 
 SUBCOMMANDS = ("infer", "verify", "diff", "fix")
@@ -405,41 +399,6 @@ def main_infer(argv: list[str]) -> int:
     return 0
 
 
-def main_verify(argv: list[str]) -> int:
-    from .verify import verify_path
-
-    ap = argparse.ArgumentParser(
-        prog="docxtpl-lint verify",
-        description="Render each template with real docxtpl and sentinel data and report output that is silently "
-        "lost (DTL401) or a failing render (DTL402). Needs docxtpl.",
-    )
-    ap.add_argument("files", nargs="+")
-    ap.add_argument(
-        "--data", action="append", help="render with this JSON instead of sentinel data (only DTL402); repeatable"
-    )
-    ap.add_argument("--autoescape", action="store_true", help="render with autoescape=True, like your code does")
-    ap.add_argument("--jinja-env", metavar="MODULE:ATTR", help="render with your jinja2.Environment (runs your code)")
-    ap.add_argument("--out", metavar="DIR", help="save the rendered documents to DIR")
-    ap.add_argument("--format", choices=["text", "json"], default="text")
-    ap.add_argument("--lang", choices=["en", "zh"], default="en")
-    a = ap.parse_args(argv)
-    contexts = [load_data(d) for d in a.data or []]
-    try:
-        env = _load_env(a.jinja_env) if a.jinja_env else None
-    except Exception as exc:
-        print(f"docxtpl-lint: cannot load --jinja-env {a.jinja_env}: {exc}", file=sys.stderr)
-        return 2
-    try:
-        reports = [
-            verify_path(f, contexts=contexts, autoescape=a.autoescape, jinja_env=env, out=a.out) for f in a.files
-        ]
-    except RuntimeError as exc:
-        print(f"docxtpl-lint: {exc}", file=sys.stderr)
-        return 2
-    print(render_json(reports, a.lang) if a.format == "json" else render_text(reports, False, False, a.lang, 1))
-    return 1 if any(r.issues for r in reports) else 0
-
-
 def main_diff(argv: list[str]) -> int:
     from .contract import diff, infer_tree
 
@@ -450,8 +409,21 @@ def main_diff(argv: list[str]) -> int:
     ap.add_argument("old")
     ap.add_argument("new")
     ap.add_argument("--format", choices=["text", "json"], default="text")
-    ap.add_argument("--fail-on-breaking", action="store_true", help="exit 1 if there is a breaking change")
+    ap.add_argument(
+        "--fail-on",
+        choices=["breaking", "change", "never"],
+        default="never",
+        help="exit 1 on a breaking change / on any change (default: never)",
+    )
+    ap.add_argument("--fail-on-breaking", action="store_true", help="deprecated alias of --fail-on breaking")
     a = ap.parse_args(argv)
+    if a.fail_on_breaking and a.fail_on not in ("never", "breaking"):
+        print("docxtpl-lint diff: --fail-on-breaking conflicts with --fail-on " + a.fail_on, file=sys.stderr)
+        return 2
+    if a.fail_on_breaking:
+        print("docxtpl-lint diff: --fail-on-breaking is deprecated (removed in 3.0); use --fail-on breaking",
+              file=sys.stderr)  # fmt: skip
+        a.fail_on = "breaking"
     changes = diff(infer_tree([a.old]), infer_tree([a.new]))
     if a.format == "json":
         print(json.dumps([c.to_dict() for c in changes], indent=2, ensure_ascii=False))
@@ -465,7 +437,9 @@ def main_diff(argv: list[str]) -> int:
             print(f"{mark} {sign} {c.path.replace('[]', '[*]')}{detail}")
         nb = sum(c.breaking for c in changes)
         print(f"\n{len(changes)} change(s), {nb} breaking")
-    return 1 if a.fail_on_breaking and any(c.breaking for c in changes) else 0
+    if a.fail_on == "change":
+        return 1 if changes else 0
+    return 1 if a.fail_on == "breaking" and any(c.breaking for c in changes) else 0
 
 
 def main_fix(argv: list[str]) -> int:
@@ -524,16 +498,24 @@ def main_fix(argv: list[str]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
-    if argv and argv[0] in SUBCOMMANDS:
+    verify = bool(argv) and argv[0] == "verify"
+    if verify:
         _reconf()
-        sub = {"infer": main_infer, "verify": main_verify, "diff": main_diff, "fix": main_fix}[argv[0]]
+        argv = argv[1:]
+    elif argv and argv[0] in SUBCOMMANDS:
+        _reconf()
+        sub = {"infer": main_infer, "diff": main_diff, "fix": main_fix}[argv[0]]
         try:
             return sub(argv[1:])
         except (OSError, zipfile.BadZipFile, KeyError, ValueError) as exc:
             # documented exit code 2 = unreadable input, never a traceback
             print(f"docxtpl-lint {argv[0]}: cannot read input (is it a .docx / JSON file?): {exc}", file=sys.stderr)
             return 2
-    ap = build_parser()
+    if "--warnings-as-errors" in argv:
+        print("docxtpl-lint: --warnings-as-errors was removed in 2.0; use --fail-on warning "
+              "(docs/MIGRATION-2.0.md)", file=sys.stderr)  # fmt: skip
+        return 2
+    ap = build_parser(verify)
     pre, _ = ap.parse_known_args(argv)
     if not pre.no_config:
         cfg_path = Path(pre.config) if pre.config else find_config()
@@ -544,6 +526,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"docxtpl-lint: {exc}", file=sys.stderr)
                 return 2
             cfg_data = cfg.pop("data", None)
+            if verify:
+                cfg_data = None  # D134: config data would turn off verify's DTL401 sentinel check
+                for k in VERIFY_ONLY_LINT_FLAGS:
+                    cfg.pop(k, None)
             ap.set_defaults(**cfg)
             args = ap.parse_args(argv)
             if args.data is None and cfg_data:
@@ -557,12 +543,6 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")
 
-    if args.warnings_as_errors:
-        print(
-            "docxtpl-lint: --warnings-as-errors / warnings-as-errors is deprecated and will be removed in 2.0; "
-            'use --fail-on warning / fail-on = "warning"',
-            file=sys.stderr,
-        )
     if args.explain:
         r = RULES.get(args.explain.upper())
         if r is None:
@@ -576,6 +556,12 @@ def main(argv: list[str] | None = None) -> int:
         for r in RULES.values():
             print(f"{r.id}  {r.severity:<7}  {r.summary}")
         return 0
+    if verify:
+        bad_flags = [k for k in VERIFY_ONLY_LINT_FLAGS if getattr(args, k)]
+        if bad_flags:
+            names = ", ".join("--" + k.replace("_", "-") for k in bad_flags)
+            print(f"docxtpl-lint verify: {names} only apply to lint", file=sys.stderr)
+            return 2
     if not args.files:
         ap.print_usage(sys.stderr)
         print("docxtpl-lint: error: no files given", file=sys.stderr)
@@ -600,7 +586,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     try:
-        filters, tests, autoescape = _custom_jinja(args)
+        filters, tests, autoescape, env = _custom_jinja(args)
     except Exception as exc:  # user code: report, never a traceback
         print(f"docxtpl-lint: cannot load --jinja-env {args.jinja_env}: {exc}", file=sys.stderr)
         return 2
@@ -612,20 +598,32 @@ def main(argv: list[str] | None = None) -> int:
         if not Path(f).is_file():
             print(f"docxtpl-lint: file not found: {f}", file=sys.stderr)
             return 2
-        try:
-            rep = lint_path(
-                f,
-                contexts=contexts,
-                allow_cross_paragraph=args.allow_cross_paragraph,
-                report_unused_data=args.report_unused_data,
-                schema=schema,
-                filters=filters,
-                tests=tests,
-                autoescape=autoescape,
-            )
-        except Exception as exc:
-            print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)
-            return 2
+        if verify:
+            from .verify import verify_path
+
+            try:
+                rep = verify_path(f, contexts=contexts, autoescape=args.autoescape, jinja_env=env, out=args.out)
+            except RuntimeError as exc:  # docxtpl not installed
+                print(f"docxtpl-lint: {exc}", file=sys.stderr)
+                return 2
+            except Exception as exc:
+                print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)
+                return 2
+        else:
+            try:
+                rep = lint_path(
+                    f,
+                    contexts=contexts,
+                    allow_cross_paragraph=args.allow_cross_paragraph,
+                    report_unused_data=args.report_unused_data,
+                    schema=schema,
+                    filters=filters,
+                    tests=tests,
+                    autoescape=autoescape,
+                )
+            except Exception as exc:
+                print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)
+                return 2
         rep.issues = [
             i
             for i in rep.issues
@@ -684,7 +682,7 @@ def main(argv: list[str] | None = None) -> int:
     elif main_out:
         print(main_out)
 
-    fail_on = args.fail_on or ("warning" if args.warnings_as_errors else "error")
+    fail_on = args.fail_on or "error"
     bad = {"error": {"error"}, "warning": {"error", "warning"}, "never": set()}[fail_on]
     return 1 if any(i.severity in bad for r in reports for i in r.issues) else 0
 

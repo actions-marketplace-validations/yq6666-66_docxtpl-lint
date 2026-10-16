@@ -13,9 +13,9 @@ from docxtpl_lint import lint, check_context, infer_schema, Result, TemplateLint
 
 - `template`: a path (`str` is always a path), `bytes`/`bytearray` or a binary file object (read fully into memory, not closed).
 - `jinja_env`: its filters/tests are added to `filters`/`tests`; its autoescape counts (a callable is called with `None`, as docxtpl compiles with `from_string`). The env is never modified.
-- `Result`: `file`, `issues` (`Issue`: `rule`, `severity`, `message`, `location`), `errors`, `warnings`, `ok` (no errors), `variables` (sorted data paths referenced), `rendered`, `raise_for_errors(fail_on="error"|"warning")`, `to_dict(lang)` (same as one `files[]` entry of `--format json`).
+- `Result`: `file`, `issues` (`Issue`: `rule`, `severity`, `message`, `location`), `errors`, `warnings`, `ok` (no errors), `variables` (sorted data paths referenced), `rendered`, `raise_for_errors(fail_on="error"|"warning")`, `to_dict(lang)` (same as one `files[]` entry of `--format json`; since 2.0 each issue has a `fingerprint`).
 - Thread safety: no global state; safe to call concurrently with distinct inputs.
 
 ## Stability policy
 
-Covered by semver: names above, parameter names/defaults, `Result` attributes, `to_dict()` keys, rule ids and severities only change in a major release, after at least one minor release with a `DeprecationWarning` (Python) or stderr notice (CLI). Not covered: message wording, `repr`, other modules (`core`, `verify`, … are internal).
+Covered by semver: names above, parameter names/defaults, `Result` attributes, `to_dict()` keys, rule ids and severities only change in a major release, after at least one minor release with a `DeprecationWarning` (Python) or stderr notice (CLI). `docxtpl_lint.lint_path` is deprecated since 2.0 (DeprecationWarning) and will be removed in 3.0. Not covered: message wording, `repr`, other modules (`core`, `verify`, … are internal).
