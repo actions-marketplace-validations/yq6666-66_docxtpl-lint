@@ -23,5 +23,5 @@ All notable changes to this project are documented here. The format follows
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/OWNER/docxtpl-lint/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/OWNER/docxtpl-lint/releases/tag/v0.1.0
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/yq6666-66/docxtpl-lint/releases/tag/v0.1.0

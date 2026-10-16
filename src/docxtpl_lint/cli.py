@@ -114,7 +114,7 @@ def render_sarif(reports: list[Report], lang: str = "en") -> str:
     driver = {
         "name": "docxtpl-lint",
         "version": __version__,
-        "informationUri": "https://github.com/OWNER/docxtpl-lint",
+        "informationUri": "https://github.com/yq6666-66/docxtpl-lint",
         "rules": [{"id": r.id, "shortDescription": {"text": r.summary}} for r in RULES.values()],
     }
     return json.dumps(

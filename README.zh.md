@@ -5,7 +5,7 @@
 **一个用于 [docxtpl](https://github.com/elapouya/python-docx-template)（python-docx-template）Word 模板的静态检查工具。
 它能把每个问题定位到具体的表格单元格，一次运行报告所有问题，并返回可供 CI 使用的退出码。**
 
-![docxtpl-lint 输出](https://raw.githubusercontent.com/OWNER/docxtpl-lint/main/docs/demo-zh.svg)
+![docxtpl-lint 输出](https://raw.githubusercontent.com/yq6666-66/docxtpl-lint/main/docs/demo-zh.svg)
 
 docxtpl 本身只会给出下面这样的信息，没有位置，而且只报第一个错误：
 
@@ -93,7 +93,7 @@ docxtpl-lint --list-rules
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: OWNER/docxtpl-lint@v0.1.0
+- uses: yq6666-66/docxtpl-lint@v0.1.0
   with:
     files: |
       templates/**/*.docx
@@ -104,7 +104,7 @@ docxtpl-lint --list-rules
 
 ```yaml
 repos:
-  - repo: https://github.com/OWNER/docxtpl-lint
+  - repo: https://github.com/yq6666-66/docxtpl-lint
     rev: v0.1.0
     hooks:
       - id: docxtpl-lint

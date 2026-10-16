@@ -29,7 +29,7 @@ dev = ["pytest>=8", "ruff>=0.6", "python-docx>=1.1", "docxtpl>=0.18", "rich>=13"
 docxtpl-lint = "docxtpl_lint.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/OWNER/docxtpl-lint"
+Homepage = "https://github.com/yq6666-66/docxtpl-lint"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/docxtpl_lint"]

@@ -5,7 +5,7 @@
 **A static linter for [docxtpl](https://github.com/elapouya/python-docx-template) (python-docx-template) Word templates.
 It points each problem to the exact table cell, reports all problems in one run, and returns exit codes your CI can use.**
 
-![docxtpl-lint output](https://raw.githubusercontent.com/OWNER/docxtpl-lint/main/docs/demo.svg)
+![docxtpl-lint output](https://raw.githubusercontent.com/yq6666-66/docxtpl-lint/main/docs/demo.svg)
 
 docxtpl itself only gives you this, with no location and only the first error:
 
@@ -93,7 +93,7 @@ To silence rules for one template, put a Jinja comment anywhere in it (docxtpl r
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: OWNER/docxtpl-lint@v0.1.0
+- uses: yq6666-66/docxtpl-lint@v0.1.0
   with:
     files: |
       templates/**/*.docx
@@ -104,7 +104,7 @@ To silence rules for one template, put a Jinja comment anywhere in it (docxtpl r
 
 ```yaml
 repos:
-  - repo: https://github.com/OWNER/docxtpl-lint
+  - repo: https://github.com/yq6666-66/docxtpl-lint
     rev: v0.1.0
     hooks:
       - id: docxtpl-lint
