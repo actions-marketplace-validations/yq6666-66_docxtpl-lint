@@ -6,7 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.9.0] - 2026-10-16
+## [1.9.1] - 2026-10-16
+
+First release of the 1.9 line. The `v1.9.0` tag was pushed but never released: CI's `ruff format --check` (which also formats code blocks in README) failed on it, so 1.9.0 is not on PyPI. 1.9.1 = 1.9.0 + README formatting.
 
 ### Added
 - Stable Python API `docxtpl_lint.api` (also top-level): `lint(template, data, ...)`, `check_context(template, context)` (lint + in-memory docxtpl render, a pre-render guard), `infer_schema(paths)`, `Result` (`issues`, `errors`, `warnings`, `ok`, `variables`, `rendered`, `raise_for_errors()`, `to_dict()`), `TemplateLintError`. Templates can be paths, bytes or binary file objects. Stability policy: docs/api.md.
@@ -180,8 +182,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.0...HEAD
-[1.9.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...v1.9.0
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.8.0...v1.9.1
 [1.8.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...v1.6.0

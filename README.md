@@ -50,7 +50,7 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 ```python
 from docxtpl_lint import check_context, lint
 
-lint("invoice.docx").raise_for_errors()           # static, in tests or CI
+lint("invoice.docx").raise_for_errors()  # static, in tests or CI
 res = check_context(tpl_bytes, ctx, jinja_env=env)  # right before rendering in your app
 if not res.ok:
     log.error(res.to_dict())
@@ -248,7 +248,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.9.0
+- uses: yq6666-66/docxtpl-lint@v1.9.1
   with:
     files: |
       templates/**/*.docx
@@ -263,7 +263,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.9.0
+    rev: v1.9.1
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

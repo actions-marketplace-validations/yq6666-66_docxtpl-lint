@@ -44,7 +44,7 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 ```python
 from docxtpl_lint import check_context, lint
 
-lint("invoice.docx").raise_for_errors()           # 静态检查，用于测试或 CI
+lint("invoice.docx").raise_for_errors()  # 静态检查，用于测试或 CI
 res = check_context(tpl_bytes, ctx, jinja_env=env)  # 应用里渲染前的守卫
 if not res.ok:
     log.error(res.to_dict())
@@ -240,7 +240,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.9.0
+- uses: yq6666-66/docxtpl-lint@v1.9.1
   with:
     files: |
       templates/**/*.docx
@@ -255,7 +255,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.9.0
+    rev: v1.9.1
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

@@ -211,3 +211,5 @@
 | D129 | Top-level `lint_path` NOT deprecated in 1.9 | DeepSeek #11: it is the only previously public API |
 | D130 | `config=True` magic and `infer_schema` rename rejected/omitted | No config param in api (explicit args only, #3); `infer_schema` really returns JSON Schema (`$schema` 2020-12), so the name is accurate (#8 rejected) |
 | D131 | `check_context` takes `filters`/`tests`; `Template` alias exported and includes bytearray | DeepSeek review of api.py #8/#10/#15 |
+
+**D132.** Ship the 1.9 line as **1.9.1** and leave the unreleased `v1.9.0` tag in place. The pushed v1.9.0 tag failed CI only on `ruff format --check` of README code blocks (local ruff did not format Markdown). Moving a pushed tag rewrites remote history, so a new patch version was cut instead; 1.9.0 was never on PyPI or a GitHub Release. Local `check.sh` now runs `ruff format --check .` on the whole repo like CI.
