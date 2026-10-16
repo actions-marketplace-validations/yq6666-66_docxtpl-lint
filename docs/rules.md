@@ -10,7 +10,7 @@ Rules can be suppressed for a whole file with a Jinja comment:
 {# docxtpl-lint: disable=DTL301,DTL002 #}
 ```
 
-or for one paragraph (v1.2; ids or prefixes such as `DTL2`):
+or for one paragraph (ids or prefixes such as `DTL2`):
 
 ```jinja
 {%p if n % 2 == 0 %} {# docxtpl-lint: disable-line=DTL201 #}

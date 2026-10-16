@@ -2,124 +2,47 @@
 
 [中文文档 / Chinese](README.zh.md)
 
-**A static linter for [docxtpl](https://github.com/elapouya/python-docx-template) (python-docx-template) Word templates.
-It points each problem to the exact table cell, reports all problems in one run, and returns exit codes your CI can use.**
+**A static linter for [docxtpl](https://github.com/elapouya/python-docx-template) (python-docx-template) Word templates. It finds broken tags, silently lost content and data mismatches, points each one to the exact paragraph and table cell, and gives CI-friendly exit codes.**
 
-**[▶ Try it in your browser](https://yq6666-66.github.io/docxtpl-lint/)**: drop a `.docx` and see the report. The file never
-leaves your computer; the linter runs locally via Pyodide.
+**[▶ Try it in your browser](https://yq6666-66.github.io/docxtpl-lint/)**: drop in a `.docx` to see the report. The file stays on your computer; the linter runs locally via Pyodide.
 
 ![docxtpl-lint output](https://raw.githubusercontent.com/yq6666-66/docxtpl-lint/main/docs/demo.svg)
 
-docxtpl itself only gives you this, with no location and only the first error:
+> Not affiliated with python-docx-template. Tested against docxtpl 0.20.2; CI also checks weekly against docxtpl's latest release and master.
+
+## Why
+
+When a template is broken, docxtpl raises one error with no location:
 
 ```text
 jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endfor'. Jinja was looking for the following tags: 'elif' or 'else' or 'endif'.
 ```
 
-> Not affiliated with python-docx-template. Tested against docxtpl 0.20.2 and checked weekly against docxtpl's latest release and master.
+Worse, many mistakes raise nothing at all, and the generated document is just wrong. docxtpl-lint reports all of them in one run, each with its location (body / header / footer / footnotes, paragraph, and table path such as `T1 R2 C2 > T2 R2 C1`):
 
-## Benchmark: docxtpl's own templates
+- **Broken structure:** unclosed or stray `if`/`for`, tags that never close, Jinja syntax errors, tags split across paragraphs.
+- **docxtpl-specific traps:** `{%tr %}` / `{%tc %}` / `{%p %}` misuse, such as prefix mismatches that silently drop table rows ([#603](https://github.com/elapouya/python-docx-template/issues/603)), `%` inside `{%p %}` ([#644](https://github.com/elapouya/python-docx-template/issues/644)), or text next to a `{%p %}` tag that silently disappears.
+- **Jinja mistakes:** unknown filters and tests, and loop variables used after the loop.
+- **Word artefacts:** template code inside unaccepted tracked deletions (it leaks into every generated document).
+- **Data mismatches** against sample JSON or a JSON Schema: missing variables, loops over non-lists, plain strings given to `{{r}}`, and `&` / `<` values that docxtpl silently cuts when autoescape is off.
 
-The 40 templates in python-docx-template's `tests/templates` are written by the docxtpl maintainers and render correctly,
-except `template_error_tpl.docx`, which is broken on purpose. CI lints all of them every week
-([`scripts/benchmark.py`](scripts/benchmark.py), [`benchmark/expected.json`](benchmark/expected.json)):
+## Install
 
-| version | false positives | deliberate error found |
-|---|---|---|
-| 0.1.0 | 7 (`cellbg`/`colspan`/`vm`/`hm` tags, Word smart quotes) | yes (DTL102) |
-| 0.2.0 | **0** | yes (DTL102) |
-| 1.0.0 | **0** | yes (DTL102) |
-
-All 40 templates are linted in about 0.1 s. Since 1.0 the benchmark also runs `verify` (infer sample data, then render
-with the real docxtpl): 37 of 40 templates render with inferred data alone, with 0 false DTL401. The other three are the
-deliberately broken template and two that need Python objects (a custom Jinja filter, a function passed in the context).
-
-## Tested adversarially (1.1)
-
-DeepSeek designed 86 adversarial templates from the docs ([cases](docs/eval/adversarial_cases.json)). Each was built as
-a real `.docx` and also rendered with docxtpl to decide disputes. The first run found 5 real problems, all fixed in 1.1:
-`}}` inside a string literal, unclosed `{% raw %}`, comments counted as lost text, text in other cells of a `{%tr %}` row,
-and noisy DTL209 next to errors. Now all 86 cases match the
-[adjudicated expectations](benchmark/adversarial_adjudicated.json) in CI. Reports: [DeepSeek's evaluation](docs/eval/deepseek-eval.md),
-[self-evaluation](docs/eval/self-eval.md).
-
-<!-- releases -->
-
-## New in 2.0: verify and lint agree
-
-`verify` now reads `[tool.docxtpl-lint]` and supports every lint output option (SARIF, GitHub, GitLab, Markdown, baseline, `--fail-on`). With a custom `jinja-env` in your config, verify renders through it instead of failing with a false DTL402. `--warnings-as-errors` is gone (use `--fail-on warning`), JSON findings carry a stable `fingerprint`, and `lint_path` is deprecated in favour of `lint`. Upgrade notes: [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md).
-
-## New in 1.9: stable Python API
-
-```python
-from docxtpl_lint import check_context, lint
-
-lint("invoice.docx").raise_for_errors()  # static, in tests or CI
-res = check_context(tpl_bytes, ctx, jinja_env=env)  # right before rendering in your app
-if not res.ok:
-    log.error(res.to_dict())
+```sh
+pip install docxtpl-lint
+pip install "docxtpl-lint[render]"   # adds docxtpl, needed for `verify` and `check_context`
 ```
 
-Semver-stable (docs/api.md). `--fail-on error|warning|never` replaces the deprecated `--warnings-as-errors` (removed in 2.0).
+Requires Python ≥ 3.10. Available on [PyPI](https://pypi.org/project/docxtpl-lint/).
 
-## New in 1.8: CI ecosystem
+## Quick start
 
-- The GitHub Action writes a Markdown table to the job summary. New inputs: `baseline`, `sarif: docxtpl-lint.sarif` (for `github/codeql-action/upload-sarif`), and `annotate: true` (failing templates with Word comments, uploaded as an artifact).
-- `--format gitlab` for GitLab Code Quality; `--format markdown`; `--report FORMAT:FILE` to write several reports in one run. Findings carry stable fingerprints, so CI tools can track them across commits.
-
-## New in 1.7: fix --write
-
-`docxtpl-lint fix contract.docx --write contract.fixed.docx` applies the safe fixes (missing `}`, `{% tr` → `{%tr`, prefix pairs, misspelt `endfro`) to a **copy**, editing inside the existing Word runs so formatting is kept. Guesses (e.g. renaming `custmer` after `--data`) need `--unsafe`. The original template is never touched.
-
-## New in 1.6: escaping and a stronger verify
-
-- **DTL308** (with `--data`): docxtpl renders with `autoescape=False` by default, so `Smith & Co` becomes `Smith  Co` and `<b>` cuts the paragraph, with no error. Use `render(ctx, autoescape=True)` (and `--autoescape`) or `{{ name|e }}`.
-- `verify` now renders the way your code does (`--jinja-env`, `--autoescape`, several `--data` files), checks `{{r}}` / `{{p}}` too, and can keep the output with `--out DIR`.
-
-## New in 1.5: a more precise data contract
-
-- List and attribute filters feed the contract: `items|sum(attribute='price')` makes `items[].price` a number, and loops over `items|selectattr('ok')` keep the item fields.
-- **DTL306** (with `--data`): `tags|join(", ")` on a string silently prints `u, r, g, e, n, t`; on a number it raises.
-- **DTL307** (with `--data`): `{{r note }}` with a plain string renders nothing. The schema and Pydantic models mark such fields as `RichText` / `Subdoc`.
-
-## New in 1.4: tracked changes and field codes
-
-- **DTL003**: an unaccepted tracked deletion that still contains `{{ … }}`. docxtpl renders deleted text too, so the value leaks into the revision history of every generated document. Fix: accept or reject all changes first.
-- **Field codes** (`HYPERLINK "{{ url }}"`) are rendered by docxtpl and are now linted and included in the data contract.
-
-## New in 1.3: Jinja correctness
-
-- **DTL104 / DTL105**: unknown filters and tests (`{{ total|money }}` makes docxtpl raise before rendering). If you pass your own `jinja_env`, declare the names with `--filters money`, `--tests vat`, the `filters` / `tests` config keys, or `--jinja-env myapp.reports:jinja_env`.
-- **DTL106**: a loop variable or a `set` inside a loop used after the loop. It renders empty or raises; use `namespace()` instead.
-
-## New in 1.2: ideas from other linters
-
-Picked from a survey of 19 projects ([docs/research/oss-survey.md](docs/research/oss-survey.md), decisions D74–D86):
-
-| Feature | Command / syntax | Borrowed from |
-|---|---|---|
-| Paragraph-level suppression | `{# docxtpl-lint: disable-line=DTL201 #}` in the paragraph, or `{#p docxtpl-lint: disable-next=DTL209 #}` on its own line before it (docxtpl removes that `{#p` paragraph when rendering) | ruff `noqa`, djLint |
-| Unused suppressions are reported | DTL005 | ruff RUF100 |
-| Baseline for legacy template folders | `--write-baseline bl.json`, then `--baseline bl.json` (or `baseline = "bl.json"` in pyproject): only new findings fail. Entries are keyed by part, table cell and paragraph text, so they survive inserted paragraphs | ESLint bulk suppressions |
-| Per-rule counts | `--statistics` | ruff |
-| Annotated copy for Word users | `--annotate out/` writes `name.annotated.docx` with one Word comment per paragraph with findings; the template itself is not touched | lintxtpl |
-| Pydantic v2 models for the data | `docxtpl-lint infer a.docx --pydantic models.py` | datamodel-code-generator |
-
-## What's new in 1.0: from linting to data contracts
-
-Five things no other docxtpl tool does (see [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md) for the reasoning):
-
-| | command | what you get |
-|---|---|---|
-| 1 | `docxtpl-lint infer a.docx b.docx -o schema.json --sample sample.json` | the template's **data contract as JSON Schema** (lists from `for` loops, nested fields, numbers from `round`/arithmetic/comparisons, optional fields from `is defined`/`default`), merged across templates with `x-docxtpl-templates` per field, plus sample data that renders |
-| 2 | `docxtpl-lint verify a.docx` | **render-equivalence check**: renders with the real docxtpl and unique sentinel values, then reports every `{{ value }}` that silently vanished (DTL401) or a render that fails (DTL402). Needs `pip install "docxtpl-lint[render]"` |
-| 3 | `docxtpl-lint diff old.docx new.docx --fail-on breaking` | **contract diff between template versions**: new required fields, list ↔ object changes, optional → required are breaking; removed fields are not; renames are hinted |
-| 4 | `docxtpl-lint a.docx --schema schema.json` | **schema conformance**: every variable must be declared in the contract (DTL304), loops must be over arrays (DTL305) |
-| 5 | `docxtpl-lint fix a.docx` | **fix suggestions as unified diffs**: `{% tr` → `{%tr`, mismatched prefixes, `endfro` → `endfor`, `iff` → `if`, `custmer` → `customer` (with `--data`). The `.docx` is never rewritten; every fix kind is tested by applying it and rendering with docxtpl |
-
-`verify` found a docxtpl behaviour that no rule covered: text next to a `{%p %}`, `{%tr %}` or `{%tc %}` tag is dropped from
-the output without an error. That is now the static rule **DTL209**. The playground shows the fix suggestions and the
-inferred schema/sample data too.
+```sh
+docxtpl-lint templates/*.docx                      # lint
+docxtpl-lint invoice.docx --data sample.json       # also check against sample data
+docxtpl-lint verify invoice.docx                   # render with real docxtpl and find lost output
+docxtpl-lint --explain DTL209                      # what a rule means
+```
 
 ```console
 $ docxtpl-lint verify invoice.docx
@@ -129,126 +52,115 @@ invoice.docx:body ¶1:7: error DTL401 `{{ total }}` was rendered by docxtpl but 
         ¶2             | {%p endif %}
 ```
 
-## Features
-
-- **Table-cell locations.** Each issue names the part (body, `header1`, `footer2`, footnotes), the paragraph, and for tables
-  a path like `T1 R2 C2 > T2 R2 C1` (table, row, column; nested tables supported). The offending tag text is always printed.
-- **All block problems in one run.** Unclosed `if`/`for`, stray `endfor`/`else`, and tags that never close are found with
-  the linter's own tag stack, so you don't fix-render-repeat. Other Jinja syntax errors are reported once per document part,
-  as Jinja itself does.
-- **Knows docxtpl's own tags.** `{%tr %}`, `{%tc %}`, `{%p %}`, `{%r %}`. Each docxtpl rule has a test that renders a bad
-  template with the real docxtpl and checks that it really breaks.
-- **Checks templates against sample data.** `--data sample.json` checks every variable path, including nested fields and
-  loop items such as `items[*].price`. Paths guarded with `is defined` or `| default(...)` are not reported.
-- **Built for CI.** Exit codes, `--format json|github|sarif`, a GitHub Action and a pre-commit hook.
-- **Read-only.** Your `.docx` is never modified. The linter reads the OOXML with lxml and does not import docxtpl
-  (only `verify` does, through the optional `[render]` extra).
-
-## Install
-
-Install from [PyPI](https://pypi.org/project/docxtpl-lint/):
-
-```sh
-pip install docxtpl-lint
-pip install "docxtpl-lint[render]"   # + verify
-```
-
-## Usage
-
-```sh
-docxtpl-lint templates/*.docx
-docxtpl-lint contract.docx --data sample.json            # + data checks (repeat --data for several contexts)
-docxtpl-lint contract.docx --format json > report.json   # machine readable (schema_version: 1)
-docxtpl-lint contract.docx --list-vars                   # which data does this template need?
-docxtpl-lint contract.docx --lang zh                     # 中文提示
-docxtpl-lint contract.docx --context 2                   # show 2 paragraphs around each issue
-docxtpl-lint --list-rules
-docxtpl-lint --explain DTL209                           # what a rule means, with a link to examples
-docxtpl-lint infer contract.docx -o schema.json --sample sample.json
-docxtpl-lint contract.docx --schema schema.json           # DTL304/305
-docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
-docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on breaking
-docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs
-docxtpl-lint fix contract.docx --write fixed.docx         # apply safe fixes to a copy
-docxtpl-lint templates/*.docx --statistics               # count per rule
-docxtpl-lint templates/*.docx --write-baseline bl.json   # accept today's findings ...
-docxtpl-lint templates/*.docx --baseline bl.json         # ... and fail only on new ones
-docxtpl-lint templates/*.docx --annotate review/         # copies with Word comments
-docxtpl-lint infer contract.docx --pydantic models.py    # Pydantic v2 models
-```
-
 | exit code | meaning |
 |---|---|
-| 0 | no findings at the `--fail-on` level (default: errors only) |
-| 1 | errors found |
-| 2 | bad arguments, missing file, unreadable `.docx` / JSON |
+| 0 | no findings at the `--fail-on` level (default `error`) |
+| 1 | findings at that level |
+| 2 | bad arguments or config, missing file, unreadable `.docx` / JSON |
 
-Other options: `--select DTL1,DTL206`, `--ignore DTL2` (prefix match), `--allow-cross-paragraph`,
-`--report-unused-data`, `--fail-on error|warning|never`, `--no-color`.
+## Features
 
-`--context N` prints the surrounding paragraphs with their table position, so you can find the spot without opening Word.
-It defaults to 1 in a terminal and 0 in CI logs and pipes.
+### Lint rules
 
-### Configuration
+There are 30 rules in five groups. Each has examples, the docxtpl behaviour it guards against, and a fix in **[docs/rules.md](docs/rules.md)**. Run `docxtpl-lint --list-rules` to list them all.
 
-Put defaults in the nearest `pyproject.toml`. Command-line options take precedence, and unknown keys are an error (exit 2):
+| group | rules | examples |
+|---|---|---|
+| tags and Word | DTL001–DTL005 | tag never closed, tag spans paragraphs, code in a tracked deletion, unused suppression |
+| Jinja | DTL101–DTL106 | unclosed block, stray `endfor`, syntax error, unknown filter/test, loop variable outside its loop |
+| docxtpl tags | DTL201–DTL210 | `{% tr` with a space, `tr` outside a table, prefix mismatch, `{%tr %}` across tables, content dropped next to `{%p %}` |
+| data (`--data` / `--schema`) | DTL301–DTL308 | missing variable, loop over a non-list, undeclared in schema, list filter on a string, plain value for `{{r}}`, unescaped `&` / `<` |
+| render (`verify`) | DTL401–DTL402 | value silently lost in the output, render fails |
 
-```toml
-[tool.docxtpl-lint]
-ignore = ["DTL002"]
-data = ["tests/sample_context.json"]  # relative to this pyproject.toml
-fail-on = "warning"
-lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env, autoescape
+Use `--select DTL1,DTL206` and `--ignore DTL2` to choose rules (prefixes allowed). Use `--context N` to print the surrounding paragraphs, `--list-vars` to list the data paths a template uses, and `--lang zh` for messages in Chinese.
+
+### Data contract: `infer`, schema, Pydantic
+
+```sh
+docxtpl-lint infer a.docx b.docx -o schema.json --sample sample.json --pydantic models.py
+docxtpl-lint contract.docx --schema schema.json    # DTL304/DTL305
 ```
 
-Use `--config path/to/pyproject.toml` to pick a file, or `--no-config` to ignore it.
+`infer` writes the JSON Schema (2020-12) of the data the templates need:
 
-To silence rules for one template, put a Jinja comment anywhere in it (docxtpl renders it as nothing):
-`{# docxtpl-lint: disable=DTL301,DTL002 #}`. For one paragraph use `disable-line=` / `disable-next=` (see
-[docs/rules.md](docs/rules.md)); a suppression that matches nothing is reported as DTL005.
+- lists from `for` loops and nested fields;
+- numbers from arithmetic, `round` and comparisons;
+- optional fields from `is defined` / `default`;
+- `RichText` / `Subdoc` objects from `{{r}}` / `{{p}}`.
 
-## Rules
+When several templates are given, their schemas are merged, and each field is tagged with the templates that use it. `--sample` adds sample data that renders (`--items N` list items), and `--pydantic` writes Pydantic v2 models.
 
-Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SARIF output link to the matching entry.
+### `verify`: render-equivalence check
 
-| id | severity | what | docxtpl does |
-|---|---|---|---|
-| DTL001 | error | a `{{`, `{%` or `{#` is never closed | raises |
-| DTL002 | warning | a tag spans several paragraphs | merges the paragraphs, so their formatting is lost |
-| DTL101 | error | unclosed `if` / `for` / `with` / ... | raises, with no location |
-| DTL102 | error | `endX` / `else` / `elif` without a block | raises, with no location |
-| DTL103 | error | other Jinja2 syntax error, incl. `{% do %}` / `{% break %}` (not enabled in docxtpl) | raises |
-| DTL201 | error | `%` or `}` inside `{%p/tr/tc/r … %}` | raises ([#644](https://github.com/elapouya/python-docx-template/issues/644)) |
-| DTL202 | error | `{% tr …`: a space before the `tr`/`tc`/`p`/`r` prefix | raises "unknown tag" |
-| DTL203 | error | `tr`/`tc` tag outside a table | raises |
-| DTL204 | error | prefix mismatch, e.g. `{% for %}` … `{%tr endfor %}` | **silently** loses loop rows ([#603](https://github.com/elapouya/python-docx-template/issues/603)) |
-| DTL205 | error | `{%tr for %}` and `{%tr endfor %}` in different tables | **silently** loses rows |
-| DTL206 | error | `{%tr for %}` and `{%tr endfor %}` in the same row | raises |
-| DTL207 | error | `{%tc for %}` and `{%tc endfor %}` in different rows | **silently** corrupts the table |
-| DTL208 | error | `{% cellbg %}` / `{% colspan %}` / `{% vm %}` / `{% hm %}` outside a table cell | raises "unknown tag" |
-| DTL209 | error | other text next to a `{%p %}` / `{%tr %}` / `{%tc %}` tag (same paragraph / row / cell) | **silently** drops that text |
-| DTL210 | error | `{%p if %}` … `{%p endif %}` in one paragraph | raises |
-| DTL301 | error | (`--data`) variable missing from every sample context | renders empty or raises |
-| DTL302 | warning | (`--report-unused-data`) top-level data key never used | n/a |
-| DTL303 | error | (`--data`) `for` over a number / boolean / null | raises at render time |
-| DTL304 | error | (`--schema`) variable not declared in the JSON Schema | n/a (contract) |
-| DTL305 | error | (`--schema`) `for` over a value the schema declares as number / boolean / null | raises at render time |
-| DTL401 | error | (`verify`) a rendered `{{ value }}` is missing from the output | **silently** loses content |
-| DTL402 | error | (`verify`) docxtpl fails to render with the inferred / given data | raises |
+`docxtpl-lint verify a.docx` renders the template with the real docxtpl and a unique sentinel value per variable. It reports:
 
-### Upstream issues → rules
+- every `{{ value }}` that does not reach the output (DTL401);
+- a render that fails (DTL402).
 
-| python-docx-template issue | covered by |
+Pass `--data` (repeatable) to render your own contexts instead. Pass `--jinja-env MODULE:ATTR` and `--autoescape` to render the way your app does, and `--out DIR` to keep the rendered documents.
+
+`verify` reads the same configuration and supports the same output, baseline and `--fail-on` options as lint. The one exception is config `data`: it is not applied, so the sentinel check always runs.
+
+### `diff`: contract changes between template versions
+
+```sh
+docxtpl-lint diff old.docx new.docx --fail-on breaking   # or: change, never
+```
+
+These count as breaking:
+
+- new required fields;
+- list ↔ object changes;
+- optional → required;
+- plain → `RichText` / `Subdoc`.
+
+Removed fields are not breaking, and likely renames are hinted.
+
+### `fix`: suggestions and safe auto-fix
+
+```sh
+docxtpl-lint fix contract.docx [--data sample.json]          # unified diffs of the paragraph text
+docxtpl-lint fix contract.docx --write contract.fixed.docx    # apply safe fixes to a copy
+```
+
+Safe fixes include a missing `}`, `{% tr` → `{%tr`, prefix pairs, and `endfro` → `endfor`. They are applied to a **copy**, inside the existing Word runs, so formatting is kept. Fixes that guess at intent (for example `custmer` → `customer` from `--data`) need `--unsafe`. The original template is never modified.
+
+### Baseline and suppressions
+
+```sh
+docxtpl-lint templates/*.docx --write-baseline bl.json   # accept today's findings
+docxtpl-lint templates/*.docx --baseline bl.json         # fail only on new ones
+```
+
+Baseline entries are keyed by part, table cell and paragraph text, so they survive inserted paragraphs.
+
+You can also silence rules inside the template with a Jinja comment (docxtpl renders it as nothing):
+
+- `{# docxtpl-lint: disable=DTL301 #}` for the whole template;
+- `disable-line=` for the current paragraph;
+- `{#p docxtpl-lint: disable-next=… #}` for the next paragraph.
+
+A suppression that matches nothing is reported as DTL005.
+
+### Output formats
+
+| format | use |
 |---|---|
-| [#378](https://github.com/elapouya/python-docx-template/issues/378): "help to locate the error in the template" | every rule's location; DTL101/102/103 |
-| [#603](https://github.com/elapouya/python-docx-template/issues/603): "Why can't it loop in the table?" | DTL202, DTL204, DTL205, DTL206, DTL207 |
-| [#644](https://github.com/elapouya/python-docx-template/issues/644): `{%p %}` fails with `%` or `}` | DTL201 |
-| [#538](https://github.com/elapouya/python-docx-template/issues/538) / [#391](https://github.com/elapouya/python-docx-template/issues/391): which (nested) variables does a template use? | `--list-vars`, `infer` (JSON Schema), DTL301 |
+| `text` | terminal, with context lines and colour |
+| `json` | machine readable (`schema_version: 1`), with a stable `fingerprint` per finding |
+| `github` | GitHub Actions annotations |
+| `sarif` | GitHub code scanning, reviewdog (with `partialFingerprints`) |
+| `gitlab` | GitLab Code Quality |
+| `markdown` | job summary / PR comment |
 
-## Use in CI
+Use `--format F`, `-o FILE`, and `--report FORMAT:FILE` (repeatable) to write several reports in one run. Two more outputs:
 
-**GitHub Action** (annotations appear on the run and in the PR):
+- `--statistics` prints counts per rule;
+- `--annotate DIR` writes copies of the templates with one Word comment per finding, for people who fix templates in Word.
+
+### CI: GitHub Action, pre-commit, GitLab
+
+**GitHub Action** (annotations on the run and the PR, plus a Markdown job summary):
 
 ```yaml
 - uses: actions/checkout@v7
@@ -258,11 +170,12 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
       templates/**/*.docx
     args: --data tests/sample_context.json
     # baseline: docxtpl-lint-baseline.json
-    # sarif: docxtpl-lint.sarif
-    # annotate: true
+    # sarif: docxtpl-lint.sarif     # then upload with github/codeql-action/upload-sarif
+    # annotate: true                # upload commented copies as an artifact
+    # summary: false
 ```
 
-**pre-commit**
+**pre-commit:**
 
 ```yaml
 repos:
@@ -287,33 +200,61 @@ docxtpl-lint:
       codequality: gl-code-quality.json
 ```
 
-**Plain shell:** `docxtpl-lint --format github templates/*.docx`
+**Other CI:** `docxtpl-lint --format github templates/*.docx`. With reviewdog: `docxtpl-lint --format sarif templates/*.docx | reviewdog -f=sarif -name=docxtpl-lint -reporter=github-pr-review`.
 
-**reviewdog** (reads SARIF, can post PR review comments):
+### Python API
 
-```sh
-docxtpl-lint --format sarif templates/*.docx | reviewdog -f=sarif -name=docxtpl-lint -reporter=github-pr-review
+```python
+from docxtpl_lint import check_context, infer_schema, lint
+
+lint("invoice.docx").raise_for_errors()  # static check, e.g. in tests
+res = check_context(tpl_bytes, ctx, jinja_env=env)  # guard right before rendering in your app
+if not res.ok:
+    log.error(res.to_dict())
+schema = infer_schema(["invoice.docx"])
 ```
 
-## What it does not check
+Templates can be paths, bytes or binary file objects. A passed `jinja_env` supplies the custom filter and test names and the autoescape setting, and is never modified. The API follows semantic versioning. See **[docs/api.md](docs/api.md)**.
 
-- Runtime errors: unknown filters, wrong types, failing `include`, macro signature mismatches, custom
-  `jinja_env` extensions. The linter assumes docxtpl's default `jinja2.Environment()`.
-- Parts docxtpl does not render: endnotes, comments, charts, embedded objects. Text boxes are checked as part of their paragraph.
-- `¶N` counts every `<w:p>` of the part, including empty paragraphs inside table cells. Use the table path and the printed
-  snippet to find the spot in Word.
-- DTL201 follows the regex of docxtpl ≤ 0.20.2. If upstream relaxes it (open PR
-  [#645](https://github.com/elapouya/python-docx-template/pull/645)), use `--ignore DTL201`.
+### Playground
+
+**[yq6666-66.github.io/docxtpl-lint](https://yq6666-66.github.io/docxtpl-lint/)** runs the same linter in the browser (Pyodide). It shows findings, fix suggestions and the inferred schema and sample data. Nothing is uploaded.
+
+## Configuration
+
+Defaults go in the nearest `pyproject.toml`. Command-line options take precedence. Unknown keys are an error (exit 2), so a typo never silently disables a check.
+
+```toml
+[tool.docxtpl-lint]
+ignore = ["DTL002"]
+data = ["tests/sample_context.json"]  # relative to this pyproject.toml (not used by verify)
+fail-on = "warning"                   # error | warning | never
+lang = "en"                           # or "zh"
+jinja-env = "myapp.reports:jinja_env" # take custom filters/tests/autoescape from your environment (imports your code)
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, autoescape
+```
+
+Use `--config path/to/pyproject.toml` to pick a file, or `--no-config` to ignore it. If you render with a custom Jinja environment but don't want it imported, list its names with `--filters money --tests vat`. If you render with `autoescape=True`, add `--autoescape`.
+
+## How it works
+
+- **Reads the `.docx` directly.** It reads the OOXML parts (body, headers, footers, footnotes) with lxml, including table structure, field codes, text boxes and tracked changes. Linting does not import docxtpl and never modifies the file.
+- **Mirrors docxtpl's preprocessing.** It applies the same tag-cleaning regexes as docxtpl and the same handling of `{%p/tr/tc/r %}`, so the template text it analyses is what docxtpl's Jinja actually sees. Each docxtpl rule has a test that renders a bad template with the real docxtpl to prove that it really breaks.
+- **Own tag stack plus the Jinja AST.** Block problems are found with the linter's own tag stack, so all of them are reported at once. Jinja syntax and semantics (filters, tests, scopes, variable paths, types) come from parsing with Jinja2 and walking the AST. That same analysis builds the data contract for `infer`, `--data` and `--schema`.
+- **Real rendering where it matters.** `verify` and `check_context` render with docxtpl itself, using sentinel or your own data.
+- **Validated on real templates.** CI lints the 40 templates in docxtpl's own test suite (0 false positives; the deliberately broken one is found), plus 86 adversarial cases adjudicated by real renders ([benchmark](benchmark/expected.json), [adversarial cases](benchmark/adversarial_adjudicated.json)).
+- **Runs in the browser.** The pure-Python wheel loads in Pyodide for the playground.
+
+## Limitations
+
+- **Static checks assume the data you give them.** Without `--data`/`--schema`, type errors are only found by `verify` or at render time. Custom Jinja extensions, `include`, and macro signatures are not checked.
+- **Parts docxtpl does not render are skipped:** endnotes, comments, charts, embedded objects. Text boxes are checked as part of their paragraph.
+- **`¶N` counts every `<w:p>` of the part**, including empty paragraphs inside table cells. Use the table path and the printed snippet to find the spot in Word.
+- **DTL201 follows docxtpl ≤ 0.20.2.** If upstream relaxes the regex (PR [#645](https://github.com/elapouya/python-docx-template/pull/645)), use `--ignore DTL201`.
 
 ## Related
 
-[lintxtpl](https://github.com/splittist/lintxtpl) by splittist was the first linter for docxtpl templates and can write an
-annotated `.docx` with Word comments (docxtpl-lint 1.2 adopted that idea as `--annotate`). docxtpl-lint focuses on table-cell locations, docxtpl-specific rules and checks
-against sample data.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Every new docxtpl rule needs a case in `tests/rule_cases.py` that renders with the real docxtpl.
+[lintxtpl](https://github.com/splittist/lintxtpl) by splittist was the first linter for docxtpl templates, and the source of the annotated-`.docx` idea. Version history is in [CHANGELOG.md](CHANGELOG.md). See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute.
 
 ## License
 
