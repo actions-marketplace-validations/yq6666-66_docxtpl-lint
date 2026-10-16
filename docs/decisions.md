@@ -105,3 +105,22 @@
 | D71 | 子命令遇到坏文件时抛出 traceback（自评发现） | 用 fake.docx 复现 | 统一返回退出码 2，并给出一行提示 |
 | D72 | 采纳 DeepSeek 的 UX 建议：`--explain`、单个模板时不输出 x-docxtpl-templates、改写 --data 帮助文字、在线试用页加载超时提示；不采纳：--quiet/--verbose，以及已有的彩色输出功能 | — | 详见 PLAN-v1.1.md |
 | D73 | 发现的问题全部写成测试：86 个对抗用例加裁决后的预期结果（benchmark/adversarial_adjudicated.json）放进 pytest | 当前 86/86 通过 | 以后修改代码时，这批用例能防止回归 |
+
+
+## v1.2：开源项目调研后的取舍（与 DeepSeek 讨论，见 docs/research/oss-survey.md）
+
+| 编号 | 决定 | 依据 / 实验（docxtpl 0.20.2） |
+|---|---|---|
+| D74 | 调研 19 个项目；curlylint（最后推送 2024-01）和 Carbone（2026-04-07）超过 6 个月未更新，按规则跳过 | 它们的点子在 djLint / docxtemplater 里都有，不属于"独有价值" |
+| D75 | 采纳段落级抑制：`disable-line=`（本段）和 `disable-next=`（下一段），可写规则前缀 | DeepSeek 建议还加 `disable`/`enable` 区间；未采纳，因为现有的 `disable=` 已表示整文件，改语义会破坏兼容 |
+| D76 | `disable-next` 推荐写成 `{#p … #}` | 实测：`{#p … #}` 所在段落渲染后被整段删除；单独一段的普通 `{# … #}` 会留下空行（测试 test_disable_next_with_p_comment_is_removed_by_docxtpl） |
+| D77 | 新增 DTL005（warning）：段落抑制没有匹配到问题，或规则 id 不存在；DTL3xx/4xx 不报"未使用" | 这两类结果依赖 --data/--schema/verify，没传数据时必然"未使用"，报出来就是误报 |
+| D78 | 采纳基线文件 `--baseline` / `--write-baseline`，格式 `{"version":1,"files":{file:{rule:{key:count}}}}` | 与 DeepSeek 一致：key 不用段落号，而是 部件 + 单元格路径 + 段落文字哈希，并按次数计；插入段落不失效，改了出问题的段落才失效（测试覆盖）。过期条目只提示，用 --write-baseline 清理 |
+| D79 | 采纳 `--statistics`，仅 text 格式 | json/sarif 已能自行统计 |
+| D80 | 修订 D54：采纳 `--annotate DIR`，写带 Word 批注的副本 | 用户这次要求吸收其他项目的好点子；对只用 Word 的模板维护者价值最高。只写副本，拒绝覆盖原文件；批注挂在段落上，不拆 run（DeepSeek 担心拆坏标签）。LibreOffice 能读出批注，python-docx 读出的正文与原文件一致 |
+| D81 | 采纳 `infer --pydantic`，不引入依赖 | DeepSeek 建议只做顶层；我们的契约树只有对象/数组/数字/映射/Any，没有 $ref/oneOf，整棵树生成成本很低，所以全做。必填字段与 JSON Schema 的 required 一致；用生成的模型校验示例数据后交给 docxtpl 实际渲染通过 |
+| D82 | 不做 fix 安全等级 | fix 从不写文件，标签没有意义；如以后做 `fix --write` 再议 |
+| D83 | 不支持 docxtemplater / poi-tl / docx4j 语法 | 准确性来自对 docxtpl patch_xml 的建模，换引擎等于另写一个检查器 |
+| D84 | 不改用 mammoth / docx2python 解析 | 它们会把 run/段落/单元格结构归一化掉，而这正是我们定位需要的 |
+| D85 | reviewdog 只写文档示例（SARIF 输入） | 零代码 |
+| D86 | 修复 `--lang zh` 下 DTL204 位置和 DTL209 单位名仍为英文；DeepSeek 代码审查 10 条中采纳 3 条 | 采纳：同一条抑制里重叠的规则（DTL2,DTL201）都记为已使用、`--pydantic -` 不再丢掉 `--sample`、`--statistics` 帮助注明仅 text。驳回："disable-next 差一"（段落号本来就是从 1 开始，测试证明正确）及其余无影响的条目 |

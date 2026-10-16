@@ -119,8 +119,8 @@ def _loc(file: str, p: Paragraph, col: int = 0) -> Location:
     return Location(file, p.part, p.index, p.cells, p.cell_para, col)
 
 
-def _where(tg: Tag) -> str:
-    return _loc("", tg.para, tg.col).human()
+def _where(tg: Tag, lang: str = "en") -> str:
+    return _loc("", tg.para, tg.col).human(lang)
 
 
 # ---------------------------------------------------------------- tag scanning
@@ -130,6 +130,9 @@ _PREFIX_RE = re.compile(r"^(tr|tc|p|r) ")
 _SPACED_RE = re.compile(r"^-?\s+(tr|tc|p|r) ")
 _ENDRAW_RE = re.compile(r"\{%-?\s*endraw\s*-?%\}")
 _DISABLE_RE = re.compile(r"^\s*docxtpl-lint:\s*disable\s*=\s*([A-Z0-9_,\s]+?)\s*$")
+_DIRECTIVE_RE = re.compile(r"^\s*docxtpl-lint:\s*(disable-line|disable-next)\s*=\s*([A-Za-z0-9_,\s]+?)\s*$")
+# rules whose findings depend on --data / --schema / verify: an unmatched suppression for them is not "unused"
+_CONTEXT_RULES = ("DTL3", "DTL4")
 
 # docxtpl cell tags rewritten by patch_xml before Jinja sees the template
 CELL_TAGS = {"cellbg", "colspan", "vm", "hm"}
@@ -276,6 +279,76 @@ def disabled_rules(tags: list[Tag]) -> set[str]:
     return out
 
 
+@dataclass
+class Suppression:
+    """``{# docxtpl-lint: disable-line=DTL201 #}`` (same paragraph) or
+    ``{#p docxtpl-lint: disable-next=DTL201 #}`` (next paragraph of the part)."""
+
+    tag: Tag
+    kind: str
+    rules: list[str]
+    part: str
+    paragraph: int
+    used: set[str] = field(default_factory=set)
+
+    def matches(self, issue: Issue) -> list[str]:
+        loc = issue.location
+        if loc.part != self.part or loc.paragraph != self.paragraph:
+            return []
+        return [r for r in self.rules if issue.rule.startswith(r)]
+
+
+def suppressions(tags: list[Tag]) -> list[Suppression]:
+    out = []
+    for tg in tags:
+        if tg.kind != "comment":
+            continue
+        m = _DIRECTIVE_RE.match(tg.body)
+        if m:
+            rules = [x.strip().upper() for x in m.group(2).split(",") if x.strip()]
+            para = tg.para.index + (1 if m.group(1) == "disable-next" else 0)
+            out.append(Suppression(tg, m.group(1), rules, tg.para.part, para))
+    return out
+
+
+def apply_suppressions(file: str, sups: list[Suppression], issues: list[Issue]) -> list[Issue]:
+    """Drop suppressed issues; report directives that matched nothing (DTL005, like ruff RUF100)."""
+    kept = []
+    for i in issues:
+        hit = False
+        for s in sups:
+            rs = s.matches(i)
+            if rs:
+                s.used.update(rs)
+                hit = True
+        if not hit:
+            kept.append(i)
+    for s in sups:
+        bad = []
+        for r in s.rules:
+            if r in s.used:
+                continue
+            known = any(k.startswith(r) for k in RULES)
+            if not known:
+                bad.append(f"{r} (unknown rule)")
+            elif not r.startswith(_CONTEXT_RULES):
+                bad.append(r)
+        if bad:
+            kept.append(
+                Issue(
+                    "DTL005",
+                    _loc(file, s.tag.para, s.tag.col),
+                    s.tag.raw,
+                    {
+                        "directive": f"{s.kind}={','.join(s.rules)}",
+                        "rules": ", ".join(bad),
+                        "rules_zh": "、".join(b.replace(" (unknown rule)", "（未知规则）") for b in bad),
+                    },
+                )
+            )
+    return kept
+
+
 # ---------------------------------------------------------------- DTL1xx block balance
 
 
@@ -366,7 +439,17 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
         if lost:
             unit = {"p": "paragraph", "tr": "table row", "tc": "table cell"}[tg.prefix]
             issues.append(
-                Issue("DTL209", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw, "rest": lost[:40], "unit": unit})
+                Issue(
+                    "DTL209",
+                    _loc(file, tg.para, tg.col),
+                    tg.raw,
+                    {
+                        "raw": tg.raw,
+                        "rest": lost[:40],
+                        "unit": unit,
+                        "unit_zh": {"p": "段落", "tr": "表格行", "tc": "单元格"}[tg.prefix],
+                    },
+                )
             )
         if tg.kind == "stmt" and _keyword(tg) in CELL_TAGS and not tg.para.cells:
             issues.append(Issue("DTL208", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw}))
@@ -453,6 +536,7 @@ def _pair_issues(file: str, op: Tag, cl: Tag) -> list[Issue]:
                 {
                     **base,
                     "open_loc": _where(op),
+                    "open_loc_zh": _where(op, "zh"),
                     "_open_paragraph": op.para.index,
                     "_open_part": op.para.part,
                     "open_prefix": op.prefix or "-",
@@ -845,6 +929,7 @@ def lint_path(
     disabled = disabled_rules(tags)
     if allow_cross_paragraph:
         disabled.add("DTL002")
+    issues = apply_suppressions(file, suppressions(tags), issues)
     rep = Report(file, [i for i in issues if i.rule not in disabled], disabled=disabled)
     for p in paras:
         rep.paragraphs.setdefault(p.part, []).append(p)

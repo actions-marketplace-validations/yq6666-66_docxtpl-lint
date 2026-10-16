@@ -43,6 +43,19 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 [adjudicated expectations](benchmark/adversarial_adjudicated.json) in CI. Reports: [DeepSeek's evaluation](docs/eval/deepseek-eval.md),
 [self-evaluation](docs/eval/self-eval.md).
 
+## New in 1.2: ideas from other linters
+
+Picked from a survey of 19 projects ([docs/research/oss-survey.md](docs/research/oss-survey.md), decisions D74–D86):
+
+| Feature | Command / syntax | Borrowed from |
+|---|---|---|
+| Paragraph-level suppression | `{# docxtpl-lint: disable-line=DTL201 #}` in the paragraph, or `{#p docxtpl-lint: disable-next=DTL209 #}` on its own line before it (docxtpl removes that `{#p` paragraph when rendering) | ruff `noqa`, djLint |
+| Unused suppressions are reported | DTL005 | ruff RUF100 |
+| Baseline for legacy template folders | `--write-baseline bl.json`, then `--baseline bl.json` (or `baseline = "bl.json"` in pyproject): only new findings fail. Entries are keyed by part, table cell and paragraph text, so they survive inserted paragraphs | ESLint bulk suppressions |
+| Per-rule counts | `--statistics` | ruff |
+| Annotated copy for Word users | `--annotate out/` writes `name.annotated.docx` with one Word comment per paragraph with findings; the template itself is not touched | lintxtpl |
+| Pydantic v2 models for the data | `docxtpl-lint infer a.docx --pydantic models.py` | datamodel-code-generator |
+
 ## What's new in 1.0: from linting to data contracts
 
 Five things no other docxtpl tool does (see [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md) for the reasoning):
@@ -107,6 +120,11 @@ docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
 docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
 docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs, never writes
+docxtpl-lint templates/*.docx --statistics               # count per rule
+docxtpl-lint templates/*.docx --write-baseline bl.json   # accept today's findings ...
+docxtpl-lint templates/*.docx --baseline bl.json         # ... and fail only on new ones
+docxtpl-lint templates/*.docx --annotate review/         # copies with Word comments
+docxtpl-lint infer contract.docx --pydantic models.py    # Pydantic v2 models
 ```
 
 | exit code | meaning |
@@ -131,13 +149,14 @@ ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
 lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline
 ```
 
 Use `--config path/to/pyproject.toml` to pick a file, or `--no-config` to ignore it.
 
 To silence rules for one template, put a Jinja comment anywhere in it (docxtpl renders it as nothing):
-`{# docxtpl-lint: disable=DTL301,DTL002 #}`
+`{# docxtpl-lint: disable=DTL301,DTL002 #}`. For one paragraph use `disable-line=` / `disable-next=` (see
+[docs/rules.md](docs/rules.md)); a suppression that matches nothing is reported as DTL005.
 
 ## Rules
 
@@ -183,7 +202,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.1.0
+- uses: yq6666-66/docxtpl-lint@v1.2.0
   with:
     files: |
       templates/**/*.docx
@@ -195,13 +214,19 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.1.0
+    rev: v1.2.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]
 ```
 
 **Plain shell:** `docxtpl-lint --format github templates/*.docx`
+
+**reviewdog** (reads SARIF, can post PR review comments):
+
+```sh
+docxtpl-lint --format sarif templates/*.docx | reviewdog -f=sarif -name=docxtpl-lint -reporter=github-pr-review
+```
 
 ## What it does not check
 
@@ -216,7 +241,7 @@ repos:
 ## Related
 
 [lintxtpl](https://github.com/splittist/lintxtpl) by splittist was the first linter for docxtpl templates and can write an
-annotated `.docx` with Word comments. docxtpl-lint focuses on table-cell locations, docxtpl-specific rules and checks
+annotated `.docx` with Word comments (docxtpl-lint 1.2 adopted that idea as `--annotate`). docxtpl-lint focuses on table-cell locations, docxtpl-specific rules and checks
 against sample data.
 
 ## Contributing

@@ -32,6 +32,7 @@ KEYS = {
     "warnings-as-errors": (bool,),
     "lang": (str,),
     "context": (int,),
+    "baseline": (str,),
 }
 
 
@@ -71,6 +72,8 @@ def load_config(path: Path) -> dict[str, Any]:
         if key == "data":
             items = [value] if isinstance(value, str) else value
             value = [str((path.parent / v).resolve()) for v in items]
+        if key == "baseline":
+            value = str((path.parent / value).resolve())
         if key == "lang" and value not in ("en", "zh"):
             raise ConfigError(f"{path}: [tool.docxtpl-lint] lang must be 'en' or 'zh'")
         out[key.replace("-", "_")] = value

@@ -10,10 +10,20 @@ Rules can be suppressed for a whole file with a Jinja comment:
 {# docxtpl-lint: disable=DTL301,DTL002 #}
 ```
 
+or for one paragraph (v1.2; ids or prefixes such as `DTL2`):
+
+```jinja
+{%p if n % 2 == 0 %} {# docxtpl-lint: disable-line=DTL201 #}
+{#p docxtpl-lint: disable-next=DTL209 #}
+```
+
+`disable-line` covers the paragraph the comment is in; `disable-next` covers the next paragraph of the same part. Write `disable-next` as a `{#p … #}` comment: docxtpl removes that whole paragraph when rendering, while a plain `{# … #}` alone in a paragraph leaves an empty line. A suppression that matches nothing is reported as DTL005.
+
 | Rule | Severity | Summary |
 | --- | --- | --- |
 | [DTL001](#dtl001) | error | tag never closed |
 | [DTL002](#dtl002) | warning | tag spans several paragraphs |
+| [DTL005](#dtl005) | warning | unused or unknown suppression comment |
 | [DTL101](#dtl101) | error | unclosed block |
 | [DTL102](#dtl102) | error | stray end/else/elif |
 | [DTL103](#dtl103) | error | Jinja2 syntax error |
@@ -73,6 +83,25 @@ Hello {{ name }}
 ```
 
 **docxtpl behaviour.** renders, paragraphs merged (formatting lost); silence with `--allow-cross-paragraph`.
+
+<a id="dtl005"></a>
+## DTL005 — unused or unknown suppression comment
+
+**What it means.** A `disable-line` / `disable-next` comment names a rule that reports nothing in that paragraph, or a rule id that does not exist. Stale suppressions would hide the next real problem in that paragraph (same idea as ruff's RUF100). Suppressions of data rules (DTL3xx) and verify rules (DTL4xx) are not reported, because those findings depend on `--data`, `--schema` or `verify`.
+
+**Bad**
+
+```jinja
+{{ total }} {# docxtpl-lint: disable-line=DTL201 #}
+```
+
+**Fix**
+
+```jinja
+{{ total }}
+```
+
+**docxtpl behaviour.** the comment itself is harmless (docxtpl drops Jinja comments); the warning is about lint hygiene.
 
 <a id="dtl101"></a>
 ## DTL101 — unclosed block

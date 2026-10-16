@@ -60,6 +60,20 @@ def render_text(
     return "\n".join(lines)
 
 
+def render_statistics(reports: list[Report]) -> str:
+    """ruff-style ``--statistics``: count, rule, severity, summary; most frequent first."""
+    from collections import Counter
+
+    counts = Counter(i.rule for r in reports for i in r.issues)
+    if not counts:
+        return f"✔ {len(reports)} file(s) clean"
+    width = len(str(max(counts.values())))
+    return "\n".join(
+        f"{n:>{width}}  {rule}  {RULES[rule].severity:<7}  {RULES[rule].summary}"
+        for rule, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    )
+
+
 def render_json(reports: list[Report], lang: str = "en") -> str:
     return json.dumps(
         {
@@ -176,6 +190,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--config", help="pyproject.toml to read [tool.docxtpl-lint] from (default: nearest one)")
     ap.add_argument("--no-config", action="store_true", help="ignore [tool.docxtpl-lint] settings")
+    ap.add_argument(
+        "--statistics",
+        action="store_true",
+        help="text format: print one line per rule with its count instead of each finding",
+    )
+    ap.add_argument(
+        "--baseline", metavar="FILE", help="hide findings recorded in this baseline file; only new ones fail"
+    )
+    ap.add_argument(
+        "--write-baseline", metavar="FILE", help="record all current findings in FILE (creates or prunes it) and exit 0"
+    )
+    ap.add_argument(
+        "--annotate",
+        metavar="DIR",
+        help="write <name>.annotated.docx copies with a Word comment per finding into DIR (originals untouched)",
+    )
     ap.add_argument("--no-color", action="store_true")
     ap.add_argument("--version", action="version", version=__version__)
     return ap
@@ -209,8 +239,23 @@ def main_infer(argv: list[str]) -> int:
     ap.add_argument("-o", "--output", help="write the JSON Schema here (default: stdout)")
     ap.add_argument("--sample", help="also write sample data that satisfies the schema")
     ap.add_argument("--items", type=int, default=2, help="list items in the sample (default 2)")
+    ap.add_argument(
+        "--pydantic", metavar="FILE", help="also write Pydantic v2 models for the contract to FILE ('-' = stdout)"
+    )
     a = ap.parse_args(argv)
     tree = infer_tree(a.files)
+    if a.pydantic:
+        from .contract import to_pydantic
+
+        code = to_pydantic(tree)
+        if a.pydantic == "-":
+            print(code, end="")
+            if not a.output:
+                if a.sample:
+                    _write(json.dumps(sample(tree, a.items), indent=2, ensure_ascii=False), a.sample)
+                return 0
+        else:
+            Path(a.pydantic).write_text(code, encoding="utf-8")
     _write(json.dumps(to_schema(tree), indent=2, ensure_ascii=False), a.output)
     if a.sample:
         _write(json.dumps(sample(tree, a.items), indent=2, ensure_ascii=False), a.sample)
@@ -390,7 +435,40 @@ def main(argv: list[str] | None = None) -> int:
         ]
         reports.append(rep)
 
-    if args.format == "json":
+    if args.write_baseline:
+        from . import baseline
+
+        n = baseline.write(args.write_baseline, reports)
+        print(f"docxtpl-lint: wrote {n} finding(s) to baseline {args.write_baseline}", file=sys.stderr)
+        return 0
+    if args.baseline:
+        from . import baseline
+
+        try:
+            bl = baseline.load(args.baseline)
+        except (OSError, ValueError) as exc:
+            print(f"docxtpl-lint: cannot read --baseline: {exc}", file=sys.stderr)
+            return 2
+        hidden, stale = baseline.apply(args.baseline, bl, reports)
+        if hidden or stale:
+            msg = f"docxtpl-lint: baseline hid {hidden} finding(s)"
+            if stale:
+                msg += f"; {stale} stale baseline entr{'y' if stale == 1 else 'ies'} (prune with --write-baseline)"
+            print(msg, file=sys.stderr)
+    if args.annotate:
+        from .annotate import annotate
+
+        out_dir = Path(args.annotate)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for rep in reports:
+            if rep.issues:
+                dst = out_dir / (Path(rep.file).stem + ".annotated.docx")
+                n = annotate(rep, dst, args.lang)
+                print(f"docxtpl-lint: {dst} ({n} comment(s))", file=sys.stderr)
+
+    if args.statistics and args.format == "text":
+        print(render_statistics(reports))
+    elif args.format == "json":
         print(render_json(reports, args.lang))
     elif args.format == "github":
         out = render_github(reports, args.lang)

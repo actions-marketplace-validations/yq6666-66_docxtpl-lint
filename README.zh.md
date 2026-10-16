@@ -37,6 +37,19 @@ python-docx-template 的 `tests/templates` 中的 40 个模板由 docxtpl 维护
 
 DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/adversarial_cases.json)），每个都生成为真实的 `.docx`，并用 docxtpl 实际渲染来裁决分歧。第一轮发现 5 个真实问题，已在 1.1 全部修复：字符串里的 `}}`、未闭合的 `{% raw %}`、注释被当成丢失文本、`{%tr %}` 行中其他单元格的文本、报错旁多余的 DTL209。现在 86 个用例在 CI 中全部符合[裁决后的预期](benchmark/adversarial_adjudicated.json)。报告：[DeepSeek 评估](docs/eval/deepseek-eval.md)、[自评](docs/eval/self-eval.md)。
 
+## 1.2 的新特性：借鉴其他检查工具
+
+从 19 个项目的调研中挑选（[docs/research/oss-survey.md](docs/research/oss-survey.md)，决策 D74–D86）：
+
+| 功能 | 命令 / 写法 | 借鉴自 |
+|---|---|---|
+| 段落级抑制 | 在该段落里写 `{# docxtpl-lint: disable-line=DTL201 #}`，或在它前面单独一段写 `{#p docxtpl-lint: disable-next=DTL209 #}`（渲染时 docxtpl 会删掉这个 `{#p` 段落，不留空行） | ruff `noqa`、djLint |
+| 报告无用的抑制注释 | DTL005 | ruff RUF100 |
+| 存量模板目录的基线 | 先 `--write-baseline bl.json`，之后 `--baseline bl.json`（或在 pyproject 写 `baseline = "bl.json"`）：只有新增问题才会失败。条目按部件、单元格和段落文字定位，插入段落不会失效 | ESLint bulk suppressions |
+| 按规则统计 | `--statistics` | ruff |
+| 给只用 Word 的人看的标注副本 | `--annotate out/` 生成 `名称.annotated.docx`，每个有问题的段落一条 Word 批注；原模板不动 | lintxtpl |
+| 数据的 Pydantic v2 模型 | `docxtpl-lint infer a.docx --pydantic models.py` | datamodel-code-generator |
+
 ## 1.0 的新特性：从检查到数据契约
 
 有五件事是其他 docxtpl 工具都做不到的（推理过程见 [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md)）：
@@ -99,6 +112,11 @@ docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
 docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
 docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs, never writes
+docxtpl-lint templates/*.docx --statistics               # count per rule
+docxtpl-lint templates/*.docx --write-baseline bl.json   # accept today's findings ...
+docxtpl-lint templates/*.docx --baseline bl.json         # ... and fail only on new ones
+docxtpl-lint templates/*.docx --annotate review/         # copies with Word comments
+docxtpl-lint infer contract.docx --pydantic models.py    # Pydantic v2 models
 ```
 
 | 退出码 | 含义 |
@@ -123,13 +141,14 @@ ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
 lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline
 ```
 
 使用 `--config path/to/pyproject.toml` 指定文件，或用 `--no-config` 忽略它。
 
 要为某个模板静默规则，可在其中任意位置放入 Jinja 注释（docxtpl 会将其渲染为空）：
-`{# docxtpl-lint: disable=DTL301,DTL002 #}`
+`{# docxtpl-lint: disable=DTL301,DTL002 #}`。只针对一个段落时用 `disable-line=` / `disable-next=`（见
+[docs/rules.md](docs/rules.md)）；没有匹配到任何问题的抑制注释会报 DTL005。
 
 ## 规则
 
@@ -175,7 +194,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.1.0
+- uses: yq6666-66/docxtpl-lint@v1.2.0
   with:
     files: |
       templates/**/*.docx
@@ -187,13 +206,19 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.1.0
+    rev: v1.2.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]
 ```
 
 **纯 shell：** `docxtpl-lint --format github templates/*.docx`
+
+**reviewdog**（SARIF 输入，可以在 PR 里写行内评审意见）：
+
+```sh
+docxtpl-lint --format sarif templates/*.docx | reviewdog -f=sarif -name=docxtpl-lint -reporter=github-pr-review
+```
 
 ## 它不检查什么
 
@@ -208,7 +233,7 @@ repos:
 ## 相关
 
 splittist 的 [lintxtpl](https://github.com/splittist/lintxtpl) 是第一个用于 docxtpl 模板的检查工具，可以写出带
-Word 批注的标注 `.docx`。docxtpl-lint 专注于表格单元格位置、docxtpl 特有的规则以及针对示例数据的检查。
+Word 批注的标注 `.docx`（docxtpl-lint 1.2 借鉴了这个思路，即 `--annotate`）。docxtpl-lint 专注于表格单元格位置、docxtpl 特有的规则以及针对示例数据的检查。
 
 ## 贡献
 

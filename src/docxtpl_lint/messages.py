@@ -37,6 +37,13 @@ _RULES = [
         "（如属有意为之，可加 --allow-cross-paragraph）",
     ),
     Rule(
+        "DTL005",
+        "warning",
+        "unused or unknown suppression comment",
+        "suppression `{directive}` matched no finding here: {rules}",
+        "抑制注释 `{directive}` 在此处没有匹配到任何问题：{rules}",
+    ),
+    Rule(
         "DTL101",
         "error",
         "unclosed block",
@@ -200,4 +207,7 @@ def help_url(rule_id: str) -> str:
 def render(rule_id: str, params: dict[str, object], lang: str = "en") -> str:
     rule = RULES[rule_id]
     template = rule.zh if lang == "zh" else rule.en
+    if lang == "zh":
+        # location-like params carry a localised twin, e.g. open_loc / open_loc_zh
+        params = {k: params.get(k + "_zh", v) for k, v in params.items()}
     return template.format(**params)

@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-16
+
+Ideas adopted from a survey of other open-source linters and template engines
+([docs/research/oss-survey.md](docs/research/oss-survey.md), [docs/PLAN-v1.2.md](docs/PLAN-v1.2.md)).
+
+### Added
+- Paragraph-level suppression: `{# docxtpl-lint: disable-line=RULES #}` and `{#p docxtpl-lint: disable-next=RULES #}`
+  (ids or prefixes), after ruff `noqa` / djLint.
+- DTL005: a paragraph suppression that matches nothing, or names an unknown rule (after ruff RUF100).
+- `--write-baseline FILE` / `--baseline FILE` (also `baseline` in `[tool.docxtpl-lint]`): accept existing findings and
+  fail only on new ones. Keys are part + table cell + paragraph-text hash, with counts (after ESLint bulk suppressions).
+- `--statistics`: count per rule (after ruff).
+- `--annotate DIR`: write `<name>.annotated.docx` copies with one Word comment per paragraph with findings (after
+  lintxtpl). Originals are never modified.
+- `infer --pydantic FILE`: Pydantic v2 models for the inferred contract (after datamodel-code-generator, no new
+  dependency).
+- README: reviewdog recipe (`--format sarif | reviewdog -f=sarif`).
+- `action.yml`: `author`.
+
+### Fixed
+- `--lang zh`: the location of the opening tag in DTL204 and the unit name in DTL209 (`table row` → `表格行`) were left
+  in English.
+
 ## [1.1.0] - 2026-10-16
 
 Found by an adversarial run (86 cases designed by DeepSeek, disputes settled by rendering with docxtpl) and a
@@ -93,7 +116,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.1.0...v0.2.0
