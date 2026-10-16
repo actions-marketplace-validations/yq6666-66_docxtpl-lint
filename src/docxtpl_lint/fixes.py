@@ -1,8 +1,15 @@
-"""Fix suggestions as unified diffs of paragraph text (``docxtpl-lint fix``).
+"""Fix suggestions as unified diffs of paragraph text (``docxtpl-lint fix``), and since 1.7
+``fix --write OUT``: the same edits applied to a *copy* of the template.
 
-The .docx is never rewritten: Word splits text into runs, so an automatic edit
-could break formatting. Each suggestion is a small, deterministic text change;
-every kind is checked in the test-suite by applying it and rendering with docxtpl.
+The template itself is never rewritten. Edits are applied inside the existing ``<w:t>``
+runs (characters are removed from / inserted into the runs they touch), so run formatting
+is kept. Each suggestion is a small, deterministic text change; every kind is checked in
+the test-suite by applying it and rendering with docxtpl.
+
+Safety: ``safe`` fixes restore what the author evidently meant (a missing ``}``, a space
+before ``tr``, a prefix that must match its pair, a misspelt Jinja keyword). Fixes that
+guess at intent (renaming a data path after ``--data``, removing a stray tag, dropping a
+``tr``/``tc`` prefix whose pair must change too) are ``unsafe`` and need ``--unsafe``.
 """
 
 from __future__ import annotations
@@ -10,6 +17,7 @@ from __future__ import annotations
 import difflib
 import re
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any
 
 from .core import Issue, Location, Report
@@ -31,6 +39,7 @@ class Fix:
     new: str  # paragraph text after
     note: str
     location: Location | None = None  # paragraph changed, if not the issue's own
+    safe: bool = True
 
     def diff(self, lang: str = "en") -> str:
         loc = self.location or self.issue.location
@@ -43,7 +52,14 @@ class Fix:
 
     def to_dict(self) -> dict[str, Any]:
         loc = (self.location or self.issue.location).to_dict()
-        return {**loc, "rule": self.issue.rule, "old": self.old, "new": self.new, "note": self.note}
+        return {
+            **loc,
+            "rule": self.issue.rule,
+            "old": self.old,
+            "new": self.new,
+            "note": self.note,
+            "safe": self.safe,
+        }
 
 
 def edit_distance(a: str, b: str) -> int:
@@ -119,6 +135,7 @@ def suggest(rep: Report, contexts: list[Any] | None = None) -> list[Fix]:
             continue
         new_raw: str | None = None
         note = ""
+        safe = True
         if iss.rule == "DTL001" and raw.startswith("{{") and len(raw) < 60:
             body = raw.rstrip()
             if body.endswith("}") and not body.endswith("}}"):
@@ -146,6 +163,7 @@ def suggest(rep: Report, contexts: list[Any] | None = None) -> list[Fix]:
         elif iss.rule == "DTL203":
             new_raw = _stmt(raw, "")
             note = "tr/tc prefixes only work inside a table; use a plain tag (remember its pair)"
+            safe = False
         elif iss.rule == "DTL102":
             m = _STMT.match(raw)
             kw = m.group(3).split()[0] if m and m.group(3).split() else ""
@@ -160,6 +178,7 @@ def suggest(rep: Report, contexts: list[Any] | None = None) -> list[Fix]:
             else:
                 new_raw = ""
                 note = "remove the stray tag (or add the missing opening tag)"
+                safe = False
         elif iss.rule == "DTL103":
             m = re.search(r"unknown tag '(\w+)'", iss.params.get("msg", ""))
             if m:
@@ -178,10 +197,127 @@ def suggest(rep: Report, contexts: list[Any] | None = None) -> list[Fix]:
                     cand = re.sub(rf"\b{re.escape(a)}\b", b, raw, count=1)
                     if cand != raw:
                         new_raw, note = cand, f"did you mean `{best.replace('[]', '[*]')}`?"
+                        safe = False
         if new_raw is None or new_raw == raw:
             continue
         new = text.replace(raw, new_raw, 1)
         if not new_raw:
             new = re.sub(r"\s{2,}", " ", new).strip() if new.strip() else ""
-        fixes.append(Fix(iss, text, new, note))
+        fixes.append(Fix(iss, text, new, note, safe=safe))
     return fixes
+
+
+# ---------------------------------------------------------------- fix --write (1.7)
+
+
+def _part_names(names: list[str]) -> dict[str, str]:
+    from .reader import _part_label
+
+    return {lbl: n for n in names if (lbl := _part_label(n))}
+
+
+def _apply_in_runs(p: Any, old: str, new: str) -> bool:
+    """Turn the paragraph text ``old`` into ``new`` by editing its ``<w:t>`` elements in place.
+    Returns False (and changes nothing) if the paragraph is not plain text the edit can map onto."""
+    from .reader import _W, _para_text
+
+    if _para_text(p) != old:
+        return False
+    segs: list[tuple[Any, int, int]] = []  # (element or None for tab/br, start, end)
+    pos = 0
+    for el in p.iter(f"{_W}t", f"{_W}tab", f"{_W}br", f"{_W}delText", f"{_W}instrText"):
+        anc = el.getparent()
+        while anc is not None and anc.tag != f"{_W}p":
+            anc = anc.getparent()
+        if anc is not p:
+            continue
+        if el.tag in (f"{_W}delText", f"{_W}instrText"):
+            return False  # tracked changes / field codes: leave to the author
+        n = len(el.text or "") if el.tag == f"{_W}t" else 1
+        segs.append((el if el.tag == f"{_W}t" else None, pos, pos + n))
+        pos += n
+    ops = difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes()
+    texts = {id(e): list(e.text or "") for e, _, _ in segs if e is not None}
+    for tag, i1, i2, j1, j2 in reversed(ops):
+        if tag == "equal":
+            continue
+        ins = new[j1:j2]
+        touched = [(e, a, b) for e, a, b in segs if a < i2 and b > i1] if i2 > i1 else []
+        if any(e is None for e, _, _ in touched):
+            return False
+        if i2 > i1:
+            first = True
+            for e, a, b in touched:
+                lo, hi = max(i1, a) - a, min(i2, b) - a
+                chars = texts[id(e)]
+                chars[lo:hi] = list(ins) if first else []
+                first = False
+        else:  # pure insertion at i1: into the run that ends at or contains i1
+            host = next(((e, a) for e, a, b in segs if e is not None and a <= i1 <= b), None)
+            if host is None:
+                return False
+            e, a = host
+            texts[id(e)][i1 - a : i1 - a] = list(ins)
+    for e, _, _ in segs:
+        if e is not None:
+            t = "".join(texts[id(e)])
+            if t != (e.text or ""):
+                e.text = t
+                e.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    return _para_text(p) == new
+
+
+def write_fixed(src: str, out: str, contexts: list[Any] | None = None, unsafe: bool = False) -> list[Fix]:
+    """Apply fixes to a copy of ``src`` written to ``out``; repeats until nothing applies
+    (one fix per paragraph per pass). Returns the fixes applied."""
+    import shutil
+    import zipfile
+
+    from lxml import etree
+
+    from .core import lint_path
+    from .reader import _W
+
+    if Path(out).resolve() == Path(src).resolve():
+        raise ValueError("refusing to overwrite the template itself; give another output path")
+    shutil.copyfile(src, out)
+    applied: list[Fix] = []
+    for _ in range(10):
+        rep = lint_path(out, contexts=contexts)
+        todo = [f for f in suggest(rep, contexts) if f.safe or unsafe]
+        with zipfile.ZipFile(out) as zf:
+            files = {i.filename: zf.read(i.filename) for i in zf.infolist()}
+            infos = zf.infolist()
+        parts = _part_names(list(files))
+        roots: dict[str, Any] = {}
+        done_paras: set[tuple[str, int]] = set()
+        progress: list[Fix] = []
+        for fx in todo:
+            loc = fx.location or fx.issue.location
+            key = (loc.part, loc.paragraph)
+            name = parts.get(loc.part)
+            if name is None or key in done_paras:
+                continue
+            root = roots.setdefault(name, etree.fromstring(files[name]))
+            paras = list(root.iter(f"{_W}p"))
+            if not 0 < loc.paragraph <= len(paras):
+                continue
+            if _apply_in_runs(paras[loc.paragraph - 1], fx.old, fx.new):
+                done_paras.add(key)
+                progress.append(fx)
+        if not progress:
+            break
+        for name, root in roots.items():
+            files[name] = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+        tmp = Path(out).with_suffix(".tmp.docx")
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zo:
+            for i in infos:
+                zo.writestr(i, files[i.filename])
+        before = len(rep.issues)
+        after = len(lint_path(tmp, contexts=contexts).issues)
+        if after >= before:  # a fix that does not reduce the findings is not kept
+            tmp.unlink()
+            break
+        tmp.replace(out)
+        applied += progress
+    return applied

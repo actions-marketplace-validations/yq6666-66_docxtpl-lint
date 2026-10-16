@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-16
+
+### Added
+- `fix --write OUT`: apply fix suggestions to a copy of the template (`OUT` is a `.docx` path, or a directory for several templates). Edits are made inside the existing runs, so formatting is kept. Passes repeat until no fix applies, and a pass is kept only if the number of findings drops. The template itself is never modified.
+- Fix safety: a missing `}`, a space before `tr`, a prefix that must match its pair and a misspelt Jinja keyword are `safe`. Renaming a path after `--data`, removing a stray tag or dropping a `tr`/`tc` prefix are `unsafe` and need `--unsafe`. JSON output has a `safe` field.
+
 ## [1.6.0] - 2026-10-16
 
 ### Added
@@ -153,7 +159,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.3.0...v1.4.0

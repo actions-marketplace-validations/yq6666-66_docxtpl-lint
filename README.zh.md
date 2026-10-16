@@ -39,6 +39,10 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 1.7 的新特性：fix --write
+
+`docxtpl-lint fix contract.docx --write contract.fixed.docx` 会把安全的修复（缺少的 `}`、`{% tr` → `{%tr`、前缀配对、拼错的 `endfro`）应用到一份**副本**上。修改直接在 Word 原有的 run 里进行，格式不变。猜测性的修复（例如根据 `--data` 把 `custmer` 改名）需要加 `--unsafe`。原模板永远不会被改动。
+
 ## 1.6 的新特性：转义问题和更强的 verify
 
 - **DTL308**（配合 `--data`）：docxtpl 默认 `autoescape=False`，`Smith & Co` 会变成 `Smith  Co`，`<b>` 会截断整个段落，而且不报任何错。请用 `render(ctx, autoescape=True)`（并加 `--autoescape`），或写成 `{{ name|e }}`。
@@ -134,7 +138,8 @@ docxtpl-lint infer contract.docx -o schema.json --sample sample.json
 docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
 docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
-docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs, never writes
+docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs
+docxtpl-lint fix contract.docx --write fixed.docx         # apply safe fixes to a copy
 docxtpl-lint templates/*.docx --statistics               # count per rule
 docxtpl-lint templates/*.docx --write-baseline bl.json   # accept today's findings ...
 docxtpl-lint templates/*.docx --baseline bl.json         # ... and fail only on new ones
@@ -217,7 +222,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.6.0
+- uses: yq6666-66/docxtpl-lint@v1.7.0
   with:
     files: |
       templates/**/*.docx
@@ -229,7 +234,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.6.0
+    rev: v1.7.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

@@ -376,21 +376,50 @@ def main_fix(argv: list[str]) -> int:
 
     ap = argparse.ArgumentParser(
         prog="docxtpl-lint fix",
-        description="Print fix suggestions as unified diffs of the paragraph text. The .docx is never modified.",
+        description="Print fix suggestions as unified diffs of the paragraph text, or apply them to a copy with "
+        "--write. The template itself is never modified.",
     )
     ap.add_argument("files", nargs="+")
+    ap.add_argument(
+        "--write",
+        metavar="OUT",
+        help="write a fixed copy: a .docx path for one template, or a directory (<name>.fixed.docx) for several",
+    )
+    ap.add_argument("--unsafe", action="store_true", help="also apply fixes that guess at intent (see docs)")
     ap.add_argument("--data", action="append", help="sample data, enables `did you mean` for DTL301")
     ap.add_argument("--format", choices=["diff", "json"], default="diff")
     ap.add_argument("--lang", choices=["en", "zh"], default="en")
     a = ap.parse_args(argv)
     contexts = [load_data(d) for d in a.data or []]
+    if a.write:
+        from .fixes import write_fixed
+
+        total = 0
+        for f in a.files:
+            dst = Path(a.write)
+            if len(a.files) > 1 or dst.is_dir() or not dst.suffix:
+                dst.mkdir(parents=True, exist_ok=True)
+                dst = dst / (Path(f).stem + ".fixed.docx")
+            done = write_fixed(f, str(dst), contexts, a.unsafe)
+            total += len(done)
+            for fx in done:
+                where = (fx.location or fx.issue.location).human(a.lang)
+                print(f"{f}: {where}: {fx.issue.rule} {fx.note}")
+            left = lint_path(str(dst), contexts=contexts).issues
+            print(f"wrote {dst}: {len(done)} fix(es) applied, {len(left)} finding(s) left", file=sys.stderr)
+        return 0
     allfx = []
     for f in a.files:
         allfx += suggest(lint_path(f, contexts=contexts), contexts)
     if a.format == "json":
         print(json.dumps([x.to_dict() for x in allfx], indent=2, ensure_ascii=False))
     elif allfx:
-        print("\n\n".join(x.diff(a.lang) for x in allfx))
+        print(
+            "\n\n".join(
+                x.diff(a.lang) + ("" if x.safe else "\n# (unsafe: applied by --write only with --unsafe)")
+                for x in allfx
+            )
+        )
     else:
         print("no fix suggestions")
     return 0

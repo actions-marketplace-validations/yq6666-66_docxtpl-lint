@@ -45,6 +45,10 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 1.7: fix --write
+
+`docxtpl-lint fix contract.docx --write contract.fixed.docx` applies the safe fixes (missing `}`, `{% tr` → `{%tr`, prefix pairs, misspelt `endfro`) to a **copy**, editing inside the existing Word runs so formatting is kept. Guesses (e.g. renaming `custmer` after `--data`) need `--unsafe`. The original template is never touched.
+
 ## New in 1.6: escaping and a stronger verify
 
 - **DTL308** (with `--data`): docxtpl renders with `autoescape=False` by default, so `Smith & Co` becomes `Smith  Co` and `<b>` cuts the paragraph, with no error. Use `render(ctx, autoescape=True)` (and `--autoescape`) or `{{ name|e }}`.
@@ -142,7 +146,8 @@ docxtpl-lint infer contract.docx -o schema.json --sample sample.json
 docxtpl-lint contract.docx --schema schema.json           # DTL304/305
 docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
 docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
-docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs, never writes
+docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs
+docxtpl-lint fix contract.docx --write fixed.docx         # apply safe fixes to a copy
 docxtpl-lint templates/*.docx --statistics               # count per rule
 docxtpl-lint templates/*.docx --write-baseline bl.json   # accept today's findings ...
 docxtpl-lint templates/*.docx --baseline bl.json         # ... and fail only on new ones
@@ -225,7 +230,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.6.0
+- uses: yq6666-66/docxtpl-lint@v1.7.0
   with:
     files: |
       templates/**/*.docx
@@ -237,7 +242,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.6.0
+    rev: v1.7.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]
