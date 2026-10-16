@@ -46,6 +46,8 @@ or for one paragraph (v1.2; ids or prefixes such as `DTL2`):
 | [DTL303](#dtl303) | error | loop over a non-iterable value from --data |
 | [DTL304](#dtl304) | error | variable not declared in --schema |
 | [DTL305](#dtl305) | error | loop over a value the --schema declares as non-iterable |
+| [DTL306](#dtl306) | error | list filter applied to a non-list value from --data |
+| [DTL307](#dtl307) | warning | plain value for a {{r}} / {{p}} tag |
 | [DTL401](#dtl401) | error | verify: output silently lost when rendered by docxtpl |
 | [DTL402](#dtl402) | error | verify: docxtpl fails to render the template |
 
@@ -522,6 +524,26 @@ Total: {{ total }}
 ```
 
 **docxtpl behaviour.** (only with `--schema`) raises `TypeError` at render time with data that follows the schema.
+
+<a id="dtl306"></a>
+## DTL306 — list filter applied to a non-list value from --data
+
+**What it means.** A filter that needs a list (`join`, `sum`, `sort`, `unique`, `map`, `select`, `reject`, `selectattr`, `rejectattr`, `batch`, `slice`, `groupby`) is applied to a value that is a number, boolean, null or string in `--data`.
+
+**Bad** (`"tags": "urgent"` in the data)
+
+```jinja
+{{ tags|join(", ") }}
+```
+
+**docxtpl behaviour.** a number raises `TypeError: 'int' object is not iterable`. A string is split into characters (`u, r, g, e, n, t`) without any error.
+
+<a id="dtl307"></a>
+## DTL307 — plain value for a {{r}} / {{p}} tag
+
+**What it means.** `{{r x }}` expects a `docxtpl.RichText` and `{{p x }}` a `Subdoc`, but the value of `x` in `--data` is a plain string or number. JSON cannot hold these objects, so this warning tells you that your Python code must build them before rendering. If you meant plain text, use `{{ x }}`.
+
+**docxtpl behaviour.** `A {{r x }} B` with `x = "plain"` renders `A  B`: the value disappears silently. `{{p x }}` with a string removes the paragraph.
 
 <a id="dtl401"></a>
 ## DTL401 — verify: output silently lost when rendered by docxtpl

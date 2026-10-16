@@ -39,6 +39,12 @@ DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/advers
 
 <!-- releases -->
 
+## 1.5 的新特性：更精确的数据契约
+
+- 列表过滤器和带属性的过滤器会写进契约：`items|sum(attribute='price')` 会把 `items[].price` 推为数字；遍历 `items|selectattr('ok')` 时元素字段不会丢。
+- **DTL306**（配合 `--data`）：对字符串用 `tags|join(", ")` 会静默输出 `u, r, g, e, n, t`；对数字则直接报错。
+- **DTL307**（配合 `--data`）：`{{r note }}` 遇到普通字符串时什么都不输出。schema 和 Pydantic 模型会把这类字段标为 `RichText` / `Subdoc`。
+
 ## 1.4 的新特性：修订记录和域代码
 
 - **DTL003**：未接受的修订删除里还有 `{{ … }}`。docxtpl 也会渲染被删除的文字，渲染出的值会泄漏到每份生成文档的修订记录里。解决办法：先接受或拒绝全部修订。
@@ -206,7 +212,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.4.0
+- uses: yq6666-66/docxtpl-lint@v1.5.0
   with:
     files: |
       templates/**/*.docx
@@ -218,7 +224,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

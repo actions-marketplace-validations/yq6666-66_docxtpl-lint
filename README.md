@@ -45,6 +45,12 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 
 <!-- releases -->
 
+## New in 1.5: a more precise data contract
+
+- List and attribute filters feed the contract: `items|sum(attribute='price')` makes `items[].price` a number, and loops over `items|selectattr('ok')` keep the item fields.
+- **DTL306** (with `--data`): `tags|join(", ")` on a string silently prints `u, r, g, e, n, t`; on a number it raises.
+- **DTL307** (with `--data`): `{{r note }}` with a plain string renders nothing. The schema and Pydantic models mark such fields as `RichText` / `Subdoc`.
+
 ## New in 1.4: tracked changes and field codes
 
 - **DTL003**: an unaccepted tracked deletion that still contains `{{ … }}`. docxtpl renders deleted text too, so the value leaks into the revision history of every generated document. Fix: accept or reject all changes first.
@@ -214,7 +220,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.4.0
+- uses: yq6666-66/docxtpl-lint@v1.5.0
   with:
     files: |
       templates/**/*.docx
@@ -226,7 +232,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

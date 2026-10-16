@@ -217,6 +217,25 @@ _RULES = [
         "`{{% for … in {path} %}}` 中的 `{path}` 在 schema 里声明为 {type}，不能循环",
     ),
     Rule(
+        "DTL306",
+        "error",
+        "list filter applied to a non-list value from --data",
+        "`{path}` is a {type} in --data but `|{filter}` needs a list; a number raises TypeError, a string is "
+        "silently split into characters and a mapping is iterated by its keys",
+        "`{path}` 在 --data 里是 {type}，但 `|{filter}` 需要列表；数字会抛出 TypeError，字符串会被静默拆成单个字符，"
+        "字典则只会遍历它的键",
+    ),
+    Rule(
+        "DTL307",
+        "warning",
+        "plain value for a {{r}} / {{p}} tag",
+        "`{raw}` expects a docxtpl {object} object, but `{path}` is a plain value in --data; docxtpl renders a plain "
+        "value in this tag as nothing. Build it with {object}(...) in Python (or use `{{{{ {path} }}}}`)",
+        "`{raw}` 需要 docxtpl 的 {object} 对象，但 `{path}` 在 --data 里是普通值；"
+        "docxtpl 在这种标签里会把普通值渲染为空。"
+        "请在 Python 里用 {object}(...) 构造（或改用 `{{{{ {path} }}}}`）",
+    ),
+    Rule(
         "DTL401",
         "error",
         "verify: output silently lost when rendered by docxtpl",

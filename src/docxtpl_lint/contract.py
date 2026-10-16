@@ -27,6 +27,7 @@ class Node:
     numeric: bool = False
     mapping: bool = False
     optional: bool = False
+    docx_object: str = ""  # "RichText" ({{r x}}) / "Subdoc" ({{p x}})
     templates: set[str] = field(default_factory=set)
     tags: list[Tag] = field(default_factory=list, repr=False)
 
@@ -40,6 +41,8 @@ class Node:
             return "mapping"
         if self.numeric:
             return "number"
+        if self.docx_object:
+            return self.docx_object.lower()
         return "any"
 
 
@@ -91,6 +94,17 @@ def build_tree(an: Analysis, template: str = "") -> Node:
         n = _walk(root, path)
         assert n is not None
         n.numeric = True
+    for path, _, _ in an.sequences:
+        n = _walk(root, path)
+        assert n is not None
+        if not n.children and not n.mapping:
+            n.array = True
+            if n.item is None:
+                n.item = Node()
+    for path, obj in an.objects.items():
+        n = _walk(root, path)
+        assert n is not None
+        n.docx_object = obj
     for path in an.mappings:
         n = _walk(root, path)
         assert n is not None
@@ -119,6 +133,7 @@ def merge(a: Node, b: Node) -> Node:
         numeric=a.numeric or b.numeric,
         mapping=a.mapping or b.mapping,
         optional=a.optional and b.optional,
+        docx_object=a.docx_object or b.docx_object,
         templates=a.templates | b.templates,
     )
     for k in dict.fromkeys([*a.children, *b.children]):
@@ -173,6 +188,9 @@ def _schema(n: Node, top: bool = False) -> dict[str, Any]:
         out["type"] = "object"
     elif n.numeric:
         out["type"] = "number"
+    elif n.docx_object:
+        out["x-docxtpl-object"] = n.docx_object
+        out["description"] = f"docxtpl {n.docx_object} object (a plain value renders as nothing in this tag)"
     if n.templates and not top:
         out["x-docxtpl-templates"] = sorted(n.templates)
     return out
@@ -290,7 +308,7 @@ def diff(old: Node, new: Node) -> list[Change]:
             o = fo[p]
             if o.kind != n.kind and "any" not in (o.kind, n.kind):
                 out.append(Change("type", p, True, f"{o.kind} -> {n.kind}"))
-            elif o.kind == "any" and n.kind in ("array", "object", "number", "mapping"):
+            elif o.kind == "any" and n.kind in ("array", "object", "number", "mapping", "richtext", "subdoc"):
                 out.append(Change("type", p, True, f"any -> {n.kind}"))
             if o.optional and not n.optional:
                 out.append(Change("optional", p, True, "optional -> required"))
@@ -356,6 +374,8 @@ def to_pydantic(root: Node, name: str = "TemplateData") -> str:
                 fields.append(f"    {ident}: {t if t == 'Any' else t + ' | None'} = None")
             else:
                 fields.append(f"    {ident}: {t}")
+            if child.docx_object:
+                fields[-1] += f"  # docxtpl.{child.docx_object}(...); a plain value renders as nothing"
         lines += fields or ["    pass"]
         classes.append("\n".join(lines))
         return cls

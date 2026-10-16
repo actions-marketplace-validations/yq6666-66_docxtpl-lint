@@ -621,9 +621,20 @@ class Analysis:
     filters: list[tuple[str, Tag]] = field(default_factory=list)  # every `| name` (incl. {% filter %})
     tests: list[tuple[str, Tag]] = field(default_factory=list)  # every `is name`
     leaks: list[tuple[str, Tag]] = field(default_factory=list)  # loop-local name used after its loop (DTL106)
+    sequences: list[tuple[str, Tag, str]] = field(default_factory=list)  # input of join/sum/map/…: (path, tag, filter)
+    objects: dict[str, str] = field(default_factory=dict)  # {{r x}} -> RichText, {{p x}} -> Subdoc
+    object_tags: list[tuple[str, Tag]] = field(default_factory=list)
 
 
 NUMERIC_FILTERS = {"round", "int", "float", "abs", "filesizeformat"}
+# filters whose input must be a list: a number raises TypeError, a string is silently split into characters
+SEQUENCE_FILTERS = {"join", "sum", "sort", "unique", "map", "select", "reject", "selectattr", "rejectattr",
+                    "batch", "slice", "groupby"}  # fmt: skip
+# filters that keep the items of the input list (so `for i in xs|selectattr('ok')` still iterates xs)
+PASSTHROUGH_FILTERS = {"selectattr", "rejectattr", "select", "reject", "sort", "unique", "list", "reverse"}
+# attribute=… / first positional argument names a field of each item
+ATTRIBUTE_FILTERS = {"map", "sum", "sort", "unique", "min", "max", "groupby", "selectattr", "rejectattr"}
+DOCX_OBJECTS = {"r": "RichText", "p": "Subdoc"}
 MAPPING_METHODS = {"items", "keys", "values"}
 
 
@@ -678,6 +689,11 @@ def analyse(tags: list[Tag]) -> Analysis:
             return None
         return None
 
+    def seq_root(n: nodes.Node) -> nodes.Node:
+        while isinstance(n, nodes.Filter) and n.name in PASSTHROUGH_FILTERS and n.node is not None:
+            n = n.node
+        return n
+
     def tag_for(n: nodes.Node) -> Tag:
         return kept[min(max(n.lineno - 1, 0), len(kept) - 1)]
 
@@ -690,6 +706,21 @@ def analyse(tags: list[Tag]) -> Analysis:
     def visit(n: nodes.Node, scope: dict[str, str | None]) -> None:
         if isinstance(n, nodes.Filter):
             res.filters.append((n.name, tag_for(n)))
+            src = seq_root(n.node) if n.node is not None else None
+            sp = path_of(src, scope) if src is not None else None
+            if sp and n.name in SEQUENCE_FILTERS:
+                res.sequences.append((sp, tag_for(n), n.name))
+            if sp and n.name in ATTRIBUTE_FILTERS:
+                attr = next((k.value for k in n.kwargs if k.key == "attribute"), None)
+                if attr is None and n.name in ("selectattr", "rejectattr", "groupby") and n.args:
+                    attr = n.args[0]
+                if isinstance(attr, nodes.Const):
+                    attr = attr.value
+                if isinstance(attr, str) and attr and re.fullmatch(r"[A-Za-z_][\w.]*", attr):
+                    ip = f"{sp}[].{attr}"
+                    res.uses.append((ip, tag_for(n)))
+                    if n.name == "sum":
+                        res.numeric.add(ip)
         if isinstance(n, nodes.Test):
             res.tests.append((n.name, tag_for(n)))
         if (
@@ -725,6 +756,10 @@ def analyse(tags: list[Tag]) -> Analysis:
                     op_ = path_of(c, scope)
                     if op_:
                         res.outputs.append((op_, tag_for(c), depth[0] > 0))
+                        obj = DOCX_OBJECTS.get(tag_for(c).prefix)
+                        if obj and tag_for(c).kind == "expr":
+                            res.objects[op_] = obj
+                            res.object_tags.append((op_, tag_for(c)))
         if isinstance(n, nodes.If):
             visit(n.test, scope)
             depth[0] += 1
@@ -744,8 +779,9 @@ def analyse(tags: list[Tag]) -> Analysis:
                 res.guarded.add(gp)
         if isinstance(n, nodes.For):
             visit(n.iter, scope)
-            it = path_of(n.iter, scope)
-            if it and isinstance(n.iter, nodes.Name | nodes.Getattr | nodes.Getitem):
+            it_node = seq_root(n.iter)
+            it = path_of(it_node, scope)
+            if it and isinstance(it_node, nodes.Name | nodes.Getattr | nodes.Getitem):
                 res.iterables.append((it, tag_for(n)))
             inner = dict(scope)
             inner["loop"] = None
@@ -929,6 +965,33 @@ def check_data(file: str, an: Analysis, contexts: list[Any], report_unused: bool
                     _loc(file, tg.para, tg.col),
                     tg.raw,
                     {"path": path.replace("[]", "[*]"), "type": _type_name(bad[0])},
+                )
+            )
+    seen_seq: set[str] = set()
+    for path, tg, flt in an.sequences:
+        if path in an.guarded or path in seen_seq:
+            continue
+        vals = [v for d in contexts for v in (_resolve(d, path) or [])]
+        bad = [v for v in vals if not isinstance(v, list)]
+        if bad:
+            seen_seq.add(path)
+            issues.append(
+                Issue(
+                    "DTL306",
+                    _loc(file, tg.para, tg.col),
+                    tg.raw,
+                    {"path": path.replace("[]", "[*]"), "type": _type_name(bad[0]), "filter": flt},
+                )
+            )
+    for path, tg in an.object_tags:
+        vals = [v for d in contexts for v in (_resolve(d, path) or [])]
+        if any(v is not None for v in vals):
+            issues.append(
+                Issue(
+                    "DTL307",
+                    _loc(file, tg.para, tg.col),
+                    tg.raw,
+                    {"path": path.replace("[]", "[*]"), "raw": tg.raw, "object": an.objects[path]},
                 )
             )
     if report_unused:

@@ -149,3 +149,14 @@
 | D97 | 域代码（HYPERLINK 等的 instrText、fldSimple 的 w:instr）纳入检查和数据契约 | 实测：`HYPERLINK "{{ url }}"` 会被渲染；域代码里写坏的标签会导致渲染失败，而 1.3 之前对此报"无问题" |
 | D98 | DeepSeek 担心"照抄 docxtpl 内部正则会和上游脱节" | 每周跑的上游兼容性任务（docxtpl 最新版和 master）现在也跑 test_v13/test_v14，正则一旦脱节就会失败 |
 | D99 | 不采纳：把 `moveTo` 也标出来 | moveTo 那一侧正常渲染一次，没有被隐藏的代码 |
+
+
+## v1.5：数据契约更精确（DeepSeek 第 14 轮）
+
+| 编号 | 决定 | 实验（docxtpl 0.20.2） |
+|---|---|---|
+| D100 | 不采纳 DeepSeek 路线里"`|upper` 等字符串过滤器 → string 类型" | 实测 `5|upper` 正常输出 "5"，字符串过滤器对数字也能用，推成 string 会误伤数字 |
+| D101 | 列表过滤器（join/sum/sort/unique/map/select/reject/selectattr/rejectattr/batch/slice/groupby）的输入推为 array；配合 --data 新增 DTL306（error） | 实测：`"abc"|join` 静默输出 "a, b, c"，`5|join` 抛 TypeError，字典只遍历键（第 14 轮 DeepSeek 指出，采纳并写成测试）。`first`/`last` 用在字符串上是合理用法（`name|first`），不算列表过滤器 |
+| D102 | 带属性的过滤器（`map(attribute=)`、`sum(attribute=)`、`sort(attribute=)`、`selectattr`、`groupby` 等）推出 `items[].attr`；`sum` 的属性推为 number | 实测：`sum(attribute='price')` 遇到字符串值会抛 TypeError。DeepSeek 认为 `selectattr('odd')` 的参数是测试名，这是错的：Jinja 的签名是 selectattr(attribute, test)，已写成测试（输出 "a"） |
+| D103 | 遍历"不改变元素"的过滤器链时保留元素作用域，例如 `for i in items|selectattr('ok')|sort(attribute='n')` | 之前 `i.title` 会从数据契约里丢掉；`batch`/`slice` 改变了元素，所以不在此列（与 DeepSeek 的看法一致） |
+| D104 | `{{r x}}` → RichText，`{{p x}}` → Subdoc：写入 schema（x-docxtpl-object）、Pydantic（字段注释）、diff（any → richtext 视为破坏性变更）；配合 --data 新增 DTL307（warning） | 实测：`A {{r x }} B` 中 x 为普通字符串或字典时，输出 "A  B"，值静默消失；`{{p x}}` 遇到字符串会删掉整个段落。DeepSeek 指出字典也不行，采纳 |

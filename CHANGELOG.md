@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-16
+
+### Added
+- DTL306 (error, with `--data`): a list filter (`join`, `sum`, `map`, `selectattr`, …) applied to a non-list value. A number raises, a string is split into characters, and a mapping yields its keys.
+- DTL307 (warning, with `--data`): `{{r x}}` / `{{p x}}` given a plain value, which docxtpl renders as nothing.
+- `infer` / Pydantic / `diff`: `{{r}}` and `{{p}}` paths are marked `x-docxtpl-object: RichText|Subdoc`; plain → RichText is a breaking change.
+
+### Changed
+- The contract understands list and attribute filters: `xs|join` → `xs` is an array; `items|sum(attribute='price')` → `items[].price` is a number; `for i in items|selectattr('ok')|sort(attribute='n')` keeps `i` bound to `items[]`.
+
 ## [1.4.0] - 2026-10-16
 
 ### Added
@@ -136,7 +146,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.1.0...v1.2.0
