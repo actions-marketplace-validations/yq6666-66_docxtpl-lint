@@ -3,6 +3,9 @@
   "must_report": {
     "template_error_tpl.docx": [
       "DTL102"
+    ],
+    "custom_jinja_filters_tpl.docx": [
+      "DTL104"
     ]
   },
   "known_false_positives": {},
@@ -14,5 +17,6 @@
   "verify_unsupported": {
     "custom_jinja_filters_tpl.docx": "custom filter my_filterB must be passed via jinja_env",
     "escape_tpl_auto.docx": "calls iteritems(), a function passed in the context"
-  }
+  },
+  "_comment_dtl104": "custom_jinja_filters_tpl.docx uses my_filterA/my_filterB, which exist only in the jinja_env its test script passes; without --filters/--jinja-env docxtpl raises TemplateAssertionError, so DTL104 is a true finding (v1.3)."
 }

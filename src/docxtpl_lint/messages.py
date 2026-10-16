@@ -65,6 +65,33 @@ _RULES = [
         "Jinja2 语法错误：{msg}",
     ),
     Rule(
+        "DTL104",
+        "error",
+        "unknown Jinja filter",
+        "filter `{name}` does not exist in docxtpl's default Jinja environment; rendering raises "
+        "TemplateAssertionError (declare custom filters with --filters or --jinja-env)",
+        "docxtpl 默认的 Jinja 环境里没有过滤器 `{name}`，渲染时会抛出 TemplateAssertionError"
+        "（自定义过滤器请用 --filters 或 --jinja-env 声明）",
+    ),
+    Rule(
+        "DTL105",
+        "error",
+        "unknown Jinja test",
+        "test `is {name}` does not exist in docxtpl's default Jinja environment; rendering raises "
+        "TemplateRuntimeError when it is evaluated (declare custom tests with --tests or --jinja-env)",
+        "docxtpl 默认的 Jinja 环境里没有测试 `is {name}`，执行到这里时会抛出 TemplateRuntimeError"
+        "（自定义测试请用 --tests 或 --jinja-env 声明）",
+    ),
+    Rule(
+        "DTL106",
+        "error",
+        "loop variable used outside its loop",
+        "`{name}` only exists inside a `for` loop (loop variable, `loop`, or a `set` inside the loop) but is used "
+        "after it; Jinja does not leak loop scope, so it renders empty or raises UndefinedError",
+        "`{name}` 只在 `for` 循环内部存在（循环变量、`loop` 或循环里 `set` 的变量），却在循环外使用；"
+        "Jinja 的循环作用域不会外泄，结果是输出为空或抛出 UndefinedError",
+    ),
+    Rule(
         "DTL201",
         "error",
         "`%` or `}` inside a {%p/tr/tc/r %} tag (docxtpl #644)",

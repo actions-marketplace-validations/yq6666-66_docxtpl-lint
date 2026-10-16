@@ -43,6 +43,13 @@ and noisy DTL209 next to errors. Now all 86 cases match the
 [adjudicated expectations](benchmark/adversarial_adjudicated.json) in CI. Reports: [DeepSeek's evaluation](docs/eval/deepseek-eval.md),
 [self-evaluation](docs/eval/self-eval.md).
 
+<!-- releases -->
+
+## New in 1.3: Jinja correctness
+
+- **DTL104 / DTL105**: unknown filters and tests (`{{ total|money }}` makes docxtpl raise before rendering). If you pass your own `jinja_env`, declare the names with `--filters money`, `--tests vat`, the `filters` / `tests` config keys, or `--jinja-env myapp.reports:jinja_env`.
+- **DTL106**: a loop variable or a `set` inside a loop used after the loop. It renders empty or raises; use `namespace()` instead.
+
 ## New in 1.2: ideas from other linters
 
 Picked from a survey of 19 projects ([docs/research/oss-survey.md](docs/research/oss-survey.md), decisions D74–D86):
@@ -149,7 +156,7 @@ ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
 lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context, baseline
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env
 ```
 
 Use `--config path/to/pyproject.toml` to pick a file, or `--no-config` to ignore it.
@@ -202,7 +209,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.2.0
+- uses: yq6666-66/docxtpl-lint@v1.3.0
   with:
     files: |
       templates/**/*.docx
@@ -214,7 +221,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.2.0
+    rev: v1.3.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

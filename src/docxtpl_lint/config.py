@@ -33,6 +33,9 @@ KEYS = {
     "lang": (str,),
     "context": (int,),
     "baseline": (str,),
+    "filters": (list, str),
+    "tests": (list, str),
+    "jinja-env": (str,),
 }
 
 
@@ -67,7 +70,7 @@ def load_config(path: Path) -> dict[str, Any]:
             raise ConfigError(f"{path}: unknown key [tool.docxtpl-lint] {key!r}; allowed: {', '.join(KEYS)}")
         if (isinstance(value, bool) and bool not in KEYS[key]) or not isinstance(value, KEYS[key]):
             raise ConfigError(f"{path}: [tool.docxtpl-lint] {key} has the wrong type")
-        if key in ("select", "ignore") and isinstance(value, list):
+        if key in ("select", "ignore", "filters", "tests") and isinstance(value, list):
             value = ",".join(value)
         if key == "data":
             items = [value] if isinstance(value, str) else value

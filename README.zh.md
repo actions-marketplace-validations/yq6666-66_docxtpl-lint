@@ -37,6 +37,13 @@ python-docx-template 的 `tests/templates` 中的 40 个模板由 docxtpl 维护
 
 DeepSeek 根据文档设计了 86 个对抗性模板（[用例](docs/eval/adversarial_cases.json)），每个都生成为真实的 `.docx`，并用 docxtpl 实际渲染来裁决分歧。第一轮发现 5 个真实问题，已在 1.1 全部修复：字符串里的 `}}`、未闭合的 `{% raw %}`、注释被当成丢失文本、`{%tr %}` 行中其他单元格的文本、报错旁多余的 DTL209。现在 86 个用例在 CI 中全部符合[裁决后的预期](benchmark/adversarial_adjudicated.json)。报告：[DeepSeek 评估](docs/eval/deepseek-eval.md)、[自评](docs/eval/self-eval.md)。
 
+<!-- releases -->
+
+## 1.3 的新特性：Jinja 正确性
+
+- **DTL104 / DTL105**：未知的过滤器和测试。例如 `{{ total|money }}` 会让 docxtpl 在渲染前就报错。如果你传了自己的 `jinja_env`，用 `--filters money`、`--tests vat`、配置项 `filters` / `tests`，或 `--jinja-env myapp.reports:jinja_env` 声明这些名字。
+- **DTL106**：循环变量或循环里 `set` 的变量在循环外使用，结果是输出为空或报错。要把值带出循环，请用 `namespace()`。
+
 ## 1.2 的新特性：借鉴其他检查工具
 
 从 19 个项目的调研中挑选（[docs/research/oss-survey.md](docs/research/oss-survey.md)，决策 D74–D86）：
@@ -141,7 +148,7 @@ ignore = ["DTL002"]
 data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
 lang = "en"                           # or "zh"
-# also: select, allow-cross-paragraph, report-unused-data, context, baseline
+# also: select, allow-cross-paragraph, report-unused-data, context, baseline, filters, tests, jinja-env
 ```
 
 使用 `--config path/to/pyproject.toml` 指定文件，或用 `--no-config` 忽略它。
@@ -194,7 +201,7 @@ lang = "en"                           # or "zh"
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: yq6666-66/docxtpl-lint@v1.2.0
+- uses: yq6666-66/docxtpl-lint@v1.3.0
   with:
     files: |
       templates/**/*.docx
@@ -206,7 +213,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v1.2.0
+    rev: v1.3.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-16
+
+### Added
+- DTL104 unknown Jinja filter, DTL105 unknown Jinja test (docxtpl raises `TemplateAssertionError` / `TemplateRuntimeError`).
+- DTL106 loop variable, `loop` or a `set` made inside a loop used after the loop (renders empty or raises `UndefinedError`).
+- `--filters`, `--tests`, `--jinja-env MODULE:ATTR` and the `filters` / `tests` / `jinja-env` config keys for templates rendered with a custom `jinja_env`.
+
+### Changed
+- Loop-local names used outside their loop are no longer listed as top-level data by `--list-vars` / `infer`.
+
 ## [1.2.0] - 2026-10-16
 
 Ideas adopted from a survey of other open-source linters and template engines
@@ -116,7 +126,8 @@ self-evaluation from a fresh install (docs/eval/).
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.2.0...v1.0.0

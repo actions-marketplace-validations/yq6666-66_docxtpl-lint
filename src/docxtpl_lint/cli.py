@@ -190,6 +190,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--config", help="pyproject.toml to read [tool.docxtpl-lint] from (default: nearest one)")
     ap.add_argument("--no-config", action="store_true", help="ignore [tool.docxtpl-lint] settings")
+    ap.add_argument("--filters", help="comma separated custom Jinja filter names your jinja_env provides (DTL104)")
+    ap.add_argument("--tests", help="comma separated custom Jinja test names your jinja_env provides (DTL105)")
+    ap.add_argument(
+        "--jinja-env",
+        metavar="MODULE:ATTR",
+        help="import your jinja2.Environment (or a function returning one) and take its filters/tests; runs your code",
+    )
     ap.add_argument(
         "--statistics",
         action="store_true",
@@ -209,6 +216,35 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--no-color", action="store_true")
     ap.add_argument("--version", action="version", version=__version__)
     return ap
+
+
+def _csv(v: object) -> set[str]:
+    if not v:
+        return set()
+    items = v if isinstance(v, list) else str(v).split(",")
+    return {x.strip() for x in items if x.strip()}
+
+
+def _custom_jinja(args: argparse.Namespace) -> tuple[set[str], set[str]]:
+    """Filter/test names from --filters/--tests and an optional --jinja-env MODULE:ATTR."""
+    filters, tests = _csv(args.filters), _csv(args.tests)
+    if args.jinja_env:
+        import importlib
+
+        mod_name, _, attr = args.jinja_env.partition(":")
+        if not attr:
+            raise ValueError("expected MODULE:ATTR, e.g. myapp.reports:jinja_env")
+        sys.path.insert(0, str(Path.cwd()))
+        try:
+            obj = getattr(importlib.import_module(mod_name), attr)
+        finally:
+            sys.path.pop(0)
+        env = obj() if callable(obj) and not hasattr(obj, "filters") else obj
+        if not hasattr(env, "filters") or not hasattr(env, "tests"):
+            raise TypeError(f"{args.jinja_env} is not a jinja2.Environment")
+        filters |= set(env.filters)
+        tests |= set(env.tests)
+    return filters, tests
 
 
 SUBCOMMANDS = ("infer", "verify", "diff", "fix")
@@ -409,6 +445,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"docxtpl-lint: cannot read --schema: {exc}", file=sys.stderr)
             return 2
 
+    try:
+        filters, tests = _custom_jinja(args)
+    except Exception as exc:  # user code: report, never a traceback
+        print(f"docxtpl-lint: cannot load --jinja-env {args.jinja_env}: {exc}", file=sys.stderr)
+        return 2
     sel = [s.strip() for s in args.select.split(",")] if args.select else None
     ign = [s.strip() for s in args.ignore.split(",")] if args.ignore else []
 
@@ -424,6 +465,8 @@ def main(argv: list[str] | None = None) -> int:
                 allow_cross_paragraph=args.allow_cross_paragraph,
                 report_unused_data=args.report_unused_data,
                 schema=schema,
+                filters=filters,
+                tests=tests,
             )
         except Exception as exc:
             print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)

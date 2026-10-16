@@ -618,6 +618,9 @@ class Analysis:
     mappings: set[str] = field(default_factory=set)  # receiver of .items()/.keys()/.values()
     # plain `{{ path }}` outputs: (path, tag, conditional) — conditional if inside if/else/for-else/x if y else z
     outputs: list[tuple[str, Tag, bool]] = field(default_factory=list)
+    filters: list[tuple[str, Tag]] = field(default_factory=list)  # every `| name` (incl. {% filter %})
+    tests: list[tuple[str, Tag]] = field(default_factory=list)  # every `is name`
+    leaks: list[tuple[str, Tag]] = field(default_factory=list)  # loop-local name used after its loop (DTL106)
 
 
 NUMERIC_FILTERS = {"round", "int", "float", "abs", "filesizeformat"}
@@ -682,8 +685,21 @@ def analyse(tags: list[Tag]) -> Analysis:
         return [t.name] if isinstance(t, nodes.Name) else [x.name for x in t.find_all(nodes.Name)]
 
     depth = [0]  # >0 while inside a conditional branch
+    loop_only: set[str] = set()  # names bound only inside some for-loop body (target, set, `loop`)
 
     def visit(n: nodes.Node, scope: dict[str, str | None]) -> None:
+        if isinstance(n, nodes.Filter):
+            res.filters.append((n.name, tag_for(n)))
+        if isinstance(n, nodes.Test):
+            res.tests.append((n.name, tag_for(n)))
+        if (
+            isinstance(n, nodes.Name)
+            and n.ctx == "load"
+            and n.name not in scope
+            and (n.name in loop_only or n.name == "loop")
+        ):
+            res.leaks.append((n.name, tag_for(n)))
+            return
         if isinstance(n, nodes.Filter) and n.name in NUMERIC_FILTERS and n.node is not None:
             fp = path_of(n.node, scope)
             if fp:
@@ -743,6 +759,7 @@ def analyse(tags: list[Tag]) -> Analysis:
                 depth[0] += 1  # `for x in xs if cond`: items may be filtered out
             for c in n.body:
                 visit(c, inner)
+            loop_only.update(k for k in inner if k not in scope)
             if n.test is not None:
                 depth[0] -= 1
             depth[0] += 1
@@ -805,6 +822,19 @@ def analyse(tags: list[Tag]) -> Analysis:
             return
         if isinstance(n, nodes.Name) and n.name in JINJA_GLOBALS and n.name not in scope:
             return
+        if isinstance(n, nodes.Getattr | nodes.Getitem) and getattr(n, "ctx", "load") == "load":
+            root = n
+            while isinstance(root, nodes.Getattr | nodes.Getitem):
+                root = root.node
+            if (
+                isinstance(root, nodes.Name)
+                and root.name not in scope
+                and (root.name in loop_only or root.name == "loop")
+            ):
+                res.leaks.append((root.name, tag_for(root)))
+                if isinstance(n, nodes.Getitem):
+                    visit(n.arg, scope)
+                return
         if isinstance(n, nodes.Getattr | nodes.Getitem | nodes.Name) and getattr(n, "ctx", "load") == "load":
             p = path_of(n, scope)
             if p is not None:
@@ -816,7 +846,31 @@ def analyse(tags: list[Tag]) -> Analysis:
             visit(c, scope)
 
     visit(ast, {})
+    free = {re.split(r"[.\[]", u, maxsplit=1)[0] for u, _ in res.uses}
+    res.leaks = [(nm, tg) for nm, tg in res.leaks if nm not in free]  # also real top-level data: not a leak
     return res
+
+
+def check_jinja(file: str, an: Analysis, filters: set[str] | None = None, tests: set[str] | None = None) -> list[Issue]:
+    """DTL104 unknown filter, DTL105 unknown test, DTL106 loop-local name used after its loop."""
+    env = _env()
+    known_f = set(env.filters) | (filters or set())
+    known_t = set(env.tests) | (tests or set())
+    out: list[Issue] = []
+    seen: set[tuple[str, str, int, int]] = set()
+    for rule, items, known in (("DTL104", an.filters, known_f), ("DTL105", an.tests, known_t)):
+        for name, tg in items:
+            key = (rule, name, tg.para.index, tg.col)
+            if name in known or key in seen:
+                continue
+            seen.add(key)
+            out.append(Issue(rule, _loc(file, tg.para, tg.col), tg.raw, {"name": name}))
+    for name, tg in an.leaks:
+        key = ("DTL106", name, tg.para.index, tg.col)
+        if key not in seen:
+            seen.add(key)
+            out.append(Issue("DTL106", _loc(file, tg.para, tg.col), tg.raw, {"name": name}))
+    return out
 
 
 # ---------------------------------------------------------------- DTL3xx data contract
@@ -896,6 +950,8 @@ def lint_path(
     allow_cross_paragraph: bool = False,
     report_unused_data: bool = False,
     schema: dict[str, Any] | None = None,
+    filters: set[str] | None = None,
+    tests: set[str] | None = None,
 ) -> Report:
     """Lint one ``.docx`` template.
 
@@ -919,6 +975,8 @@ def lint_path(
     order = {p: i for i, p in enumerate(parts)}
     issues.sort(key=lambda i: (order.get(i.location.part, 99), i.location.paragraph, i.location.column))
     an = analyse(tags)
+    if not any(i.rule in ("DTL101", "DTL102", "DTL103") for i in issues):
+        issues.extend(check_jinja(file, an, filters, tests))
     ctxs = list(contexts or []) + ([data] if data is not None else [])
     if ctxs:
         issues.extend(check_data(file, an, ctxs, report_unused_data))

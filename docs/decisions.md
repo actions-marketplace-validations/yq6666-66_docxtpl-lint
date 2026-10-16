@@ -124,3 +124,16 @@
 | D84 | 不改用 mammoth / docx2python 解析 | 它们会把 run/段落/单元格结构归一化掉，而这正是我们定位需要的 |
 | D85 | reviewdog 只写文档示例（SARIF 输入） | 零代码 |
 | D86 | 修复 `--lang zh` 下 DTL204 位置和 DTL209 单位名仍为英文；DeepSeek 代码审查 10 条中采纳 3 条 | 采纳：同一条抑制里重叠的规则（DTL2,DTL201）都记为已使用、`--pydantic -` 不再丢掉 `--sample`、`--statistics` 帮助注明仅 text。驳回："disable-next 差一"（段落号本来就是从 1 开始，测试证明正确）及其余无影响的条目 |
+
+
+## v1.3：Jinja 正确性（整体路线与 DeepSeek 第 11、12 轮讨论）
+
+| 编号 | 决定 | 依据 / 实验（docxtpl 0.20.2） |
+|---|---|---|
+| D87 | 1.3→2.0 路线：1.3 Jinja 正确性、1.4 Word 文档层面的隐患、1.5 契约类型、1.6 verify 增强、1.7 `fix --write`、1.8 CI 生态、1.9 稳定的 Python API、2.0 清理 | DeepSeek 认为 1.4 最弱，建议只做 content control（w:sdt），并建议不出 2.0。1.4 待实验后决定范围（见 PLAN-v1.4）；2.0 保留，但只做有实际理由的破坏性变更（见 PLAN-v2.0） |
+| D88 | DTL104 未知过滤器（error） | DeepSeek 说"渲染为空"。实测：编译时抛出 TemplateAssertionError，所以 DeepSeek 错了。仍有价值：渲染前就能指出具体位置 |
+| D89 | DTL105 未知测试（error） | 实测：执行到该表达式时抛出 TemplateRuntimeError |
+| D90 | DTL106 循环变量 / `loop` / 循环内 `set` 的变量在循环外使用（error） | 实测：`{{ last }}` 静默输出为空，`{{ i.n }}` 抛出 UndefinedError。如果这个名字在模板里别处也被当作顶层数据使用，则不报（实测 `{{ item }}` 在循环前后都能渲染出顶层值）。这类名字不计入数据契约 |
+| D91 | 自定义过滤器 / 测试的声明方式：`--filters`、`--tests`、配置项 `filters`/`tests`/`jinja-env`，以及 `--jinja-env MODULE:ATTR` | 与 DeepSeek 一致：没有这个出口，DTL104 就会成为误报来源。`--jinja-env` 会执行用户代码，帮助文字里已写明 |
+| D92 | 官方模板 custom_jinja_filters_tpl.docx 的 DTL104 列入 must_report | 它的测试脚本是传入自定义 jinja_env 才能渲染的；不声明时 docxtpl 确实会报错，所以是真问题，不是误报 |
+| D93 | DeepSeek 第 12 轮列出的 4 个误报场景：驳回 3 个，接受 1 个提醒 | 已写成测试：`if` 里的 `set`、循环之后的 `set`、名为 `loop` 的宏参数都不会误报（测试通过）。"同名的顶层数据会掩盖 DTL106"是有意的设计（D90） |

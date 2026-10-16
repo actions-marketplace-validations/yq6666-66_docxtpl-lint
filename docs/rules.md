@@ -27,6 +27,9 @@ or for one paragraph (v1.2; ids or prefixes such as `DTL2`):
 | [DTL101](#dtl101) | error | unclosed block |
 | [DTL102](#dtl102) | error | stray end/else/elif |
 | [DTL103](#dtl103) | error | Jinja2 syntax error |
+| [DTL104](#dtl104) | error | unknown Jinja filter |
+| [DTL105](#dtl105) | error | unknown Jinja test |
+| [DTL106](#dtl106) | error | loop variable used outside its loop |
 | [DTL201](#dtl201) | error | `%` or `}` inside a {%p/tr/tc/r %} tag (docxtpl #644) |
 | [DTL202](#dtl202) | error | space before tr/tc prefix |
 | [DTL203](#dtl203) | error | tr/tc tag outside a table |
@@ -165,6 +168,57 @@ Hello
 ```
 
 **docxtpl behaviour.** raises (includes `{% do %}` / `{% break %}`: jinja extensions not enabled by default docxtpl).
+
+<a id="dtl104"></a>
+## DTL104 — unknown Jinja filter
+
+**What it means.** The template uses a filter that docxtpl's default `jinja2.Environment()` does not have. Custom filters only work if you pass your own `jinja_env` to `render()`; declare them with `--filters money,date`, `filters = [...]` in `[tool.docxtpl-lint]`, or `--jinja-env myapp.reports:jinja_env` (imports your module).
+
+**Bad**
+
+```jinja
+{{ total|money }}
+```
+
+**Fix**
+
+```jinja
+{{ "%.2f"|format(total) }}
+```
+
+**docxtpl behaviour.** raises `TemplateAssertionError: No filter named 'money'` before anything is rendered.
+
+<a id="dtl105"></a>
+## DTL105 — unknown Jinja test
+
+**What it means.** `is name` refers to a test that the default environment does not define. Declare custom tests with `--tests`, `tests = [...]` or `--jinja-env`.
+
+**Bad**
+
+```jinja
+{% if code is valid_vat %}…{% endif %}
+```
+
+**docxtpl behaviour.** raises `TemplateRuntimeError: No test named 'valid_vat' found.` when the expression is evaluated.
+
+<a id="dtl106"></a>
+## DTL106 — loop variable used outside its loop
+
+**What it means.** A name that only exists inside a `for` body (the loop variable, `loop`, or a variable assigned with `set` inside the loop) is used after the loop. Jinja does not leak loop scope. Names that are also used as top-level data elsewhere in the template are not reported. To carry a value out of a loop, use `namespace()`.
+
+**Bad**
+
+```jinja
+{% for i in items %}{% set last = i %}{% endfor %}Last: {{ last }}
+```
+
+**Fix**
+
+```jinja
+{% set ns = namespace(last=None) %}{% for i in items %}{% set ns.last = i %}{% endfor %}Last: {{ ns.last }}
+```
+
+**docxtpl behaviour.** `{{ last }}` renders empty without an error; `{{ i.n }}` raises `UndefinedError: 'i' is undefined`.
 
 <a id="dtl201"></a>
 ## DTL201 — `%` or `}` inside a {%p/tr/tc/r %} tag (docxtpl #644)
