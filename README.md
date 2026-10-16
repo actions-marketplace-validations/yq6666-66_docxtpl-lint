@@ -182,8 +182,8 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 **GitHub Action** (annotations appear on the run and in the PR):
 
 ```yaml
-- uses: actions/checkout@v4
-- uses: yq6666-66/docxtpl-lint@v0.1.0
+- uses: actions/checkout@v7
+- uses: yq6666-66/docxtpl-lint@v1.1.0
   with:
     files: |
       templates/**/*.docx
@@ -195,7 +195,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v0.1.0
+    rev: v1.1.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]

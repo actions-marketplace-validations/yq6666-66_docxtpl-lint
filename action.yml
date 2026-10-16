@@ -1,5 +1,6 @@
 name: docxtpl-lint
-description: Lint docxtpl (python-docx-template) Word templates and annotate problems in the run / PR
+description: Lint docxtpl (python-docx-template) Word templates; annotate errors with the exact table cell in runs and PRs
+author: yq6666-66
 branding:
   icon: file-text
   color: blue

@@ -174,8 +174,8 @@ lang = "en"                           # or "zh"
 **GitHub Action**（注解会出现在运行记录和 PR 中）：
 
 ```yaml
-- uses: actions/checkout@v4
-- uses: yq6666-66/docxtpl-lint@v0.1.0
+- uses: actions/checkout@v7
+- uses: yq6666-66/docxtpl-lint@v1.1.0
   with:
     files: |
       templates/**/*.docx
@@ -187,7 +187,7 @@ lang = "en"                           # or "zh"
 ```yaml
 repos:
   - repo: https://github.com/yq6666-66/docxtpl-lint
-    rev: v0.1.0
+    rev: v1.1.0
     hooks:
       - id: docxtpl-lint
         # args: [--data, tests/sample_context.json]
