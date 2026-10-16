@@ -8,7 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 - Playground: the 1.0.0 page failed to load (escaped newlines in the embedded Python). The Pyodide smoke test now runs
-  the page's own Python code in every mode. The package itself is unchanged.
+  the page's own Python code in every mode.
+- `fix` diff headers: no `a//tmp/...` double slash; the playground shows the uploaded file name.
 
 ## [1.0.0] - 2026-10-16
 

@@ -35,8 +35,9 @@ class Fix:
     def diff(self, lang: str = "en") -> str:
         loc = self.location or self.issue.location
         where = loc.human(lang)
+        name = loc.file.lstrip("/")
         lines = difflib.unified_diff(
-            [self.old], [self.new], f"a/{loc.file} ({where})", f"b/{loc.file} ({where})", lineterm="", n=0
+            [self.old], [self.new], f"a/{name} ({where})", f"b/{name} ({where})", lineterm="", n=0
         )
         return f"# {self.issue.rule}: {self.note}\n" + "\n".join(lines)
 
