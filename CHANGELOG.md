@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Playground: the 1.0.0 page failed to load (escaped newlines in the embedded Python). The Pyodide smoke test now runs
+  the page's own Python code in every mode. The package itself is unchanged.
+
 ## [1.0.0] - 2026-10-16
 
 ### Added

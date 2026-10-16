@@ -36,4 +36,22 @@ if (schema !== expSchema) {
   console.error("Pyodide schema differs from CPython:\n" + schema + "\n---\n" + expSchema);
   process.exit(1);
 }
-console.log("pyodide smoke OK: lint output and inferred schema identical to CPython");
+// run the exact Python code embedded in index.html (as a JS template literal, like the browser does)
+const html = fs.readFileSync(path.join(site, "index.html"), "utf8");
+const m = html.match(/runPythonAsync\(`([\s\S]*?)`\);/);
+if (!m) { console.error("index.html: Python block not found"); process.exit(1); }
+const pageCode = new Function("wheel", "return `" + m[1] + "`;")(wheel).replace(/^import micropip\n.*\n/m, "");
+await py.runPythonAsync(pageCode);
+const run = py.globals.get("run");
+for (const mode of ["lint", "schema", "sample"]) {
+  const r = run("/tmp/s.docx", "issue603_table_loop.docx", "zh", mode);
+  if (!r || (mode === "lint" && !r.includes("DTL2")) || (mode !== "lint" && !r.trim().startsWith("{"))) {
+    console.error("index.html run() failed for mode " + mode + ":\n" + r);
+    process.exit(1);
+  }
+}
+if (!run("/tmp/s.docx", "x.docx", "en", "lint").includes("Suggested fixes")) {
+  console.error("index.html run(): no fix suggestions for the #603 example");
+  process.exit(1);
+}
+console.log("pyodide smoke OK: lint output and inferred schema identical to CPython; page code runs in all modes");

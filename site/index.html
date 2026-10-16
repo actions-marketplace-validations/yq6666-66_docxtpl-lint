@@ -65,8 +65,8 @@ def run(path, name, lang, mode="lint"):
     text = render_text([rep], color=False, lang=lang, context=1)
     fixes = suggest(rep)
     if fixes:
-        text += "\n\n" + ("建议的修改" if lang == "zh" else "Suggested fixes") + " (docxtpl-lint fix):\n\n"
-        text += "\n\n".join(f.diff(lang) for f in fixes)
+        text += "\\n\\n" + ("建议的修改" if lang == "zh" else "Suggested fixes") + " (docxtpl-lint fix):\\n\\n"
+        text += "\\n\\n".join(f.diff(lang) for f in fixes)
     return text
 `);
   out.innerHTML = '<span class="ok">Ready</span> <span class="dim">docxtpl-lint ' + py.globals.get("__version__") + "</span>";
