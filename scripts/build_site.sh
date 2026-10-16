@@ -16,5 +16,9 @@ from docxtpl_lint.cli import render_text
 rep = lint_path("_site/examples/issue378_unclosed.docx")
 rep.file = "issue378_unclosed.docx"
 Path("_site/expected.txt").write_text(render_text([rep], context=1), encoding="utf-8")
+import json
+from docxtpl_lint.contract import infer_tree, to_schema
+schema = to_schema(infer_tree(["_site/examples/issue603_table_loop.docx"]))
+Path("_site/expected_schema.json").write_text(json.dumps(schema, indent=2), encoding="utf-8")
 PY
 echo "built _site/ with $(basename "$wheel")"

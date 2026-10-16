@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-16
+
+### Added
+- `docxtpl-lint infer`: data contract of one or more templates as JSON Schema (2020-12) plus sample data; lists from
+  `for` loops, numbers from `round`/`int`/`float`/`abs`, arithmetic and numeric comparisons, objects from `.items()`,
+  optional fields from `is defined`/`default`; merged schemas list the templates using each field
+  (`x-docxtpl-templates`).
+- `docxtpl-lint verify` (optional extra `[render]`): render with the real docxtpl and sentinel data; DTL401 = rendered
+  value silently missing from the output, DTL402 = render fails.
+- `docxtpl-lint diff old.docx new.docx [--fail-on-breaking]`: data contract changes between template versions,
+  with rename hints.
+- `--schema schema.json`: DTL304 (variable not declared), DTL305 (loop over a non-iterable type).
+- `docxtpl-lint fix`: fix suggestions as unified diffs of the paragraph text for DTL202, DTL203, DTL204, DTL102 (stray tag
+  or misspelt opening tag), DTL103 (unknown tag) and DTL301 (with `--data`); conservative matching (≤ 2 edits, no ties).
+- DTL209: text next to a `{%p %}`/`{%tr %}`/`{%tc %}` tag is silently dropped by docxtpl (found with `verify`).
+- Playground: fix suggestions, inferred JSON Schema and sample data.
+- Benchmark runs `verify` on docxtpl's 40 templates (37 render with inferred data, 0 false DTL401).
+
+### Changed
+- Pages deploy runs on pushes to `main` (the `release` trigger ran on the tag ref, which the `github-pages` environment
+  rejects).
+- Development status: Production/Stable.
+
 ## [0.2.0] - 2026-10-16
 
 ### Added
@@ -41,6 +64,7 @@ All notable changes to this project are documented here. The format follows
 - File-level suppression comment `{# docxtpl-lint: disable=… #}`.
 - GitHub Action, pre-commit hook, and test cases checked against real docxtpl 0.20.2 rendering.
 
-[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/yq6666-66/docxtpl-lint/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/yq6666-66/docxtpl-lint/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yq6666-66/docxtpl-lint/releases/tag/v0.1.0

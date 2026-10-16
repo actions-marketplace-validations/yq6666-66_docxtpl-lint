@@ -1,7 +1,18 @@
 {
   "_comment": "Expected docxtpl-lint findings on python-docx-template's own tests/templates/*.docx. Everything not listed must be clean (0 false positives).",
   "must_report": {
-    "template_error_tpl.docx": ["DTL102"]
+    "template_error_tpl.docx": [
+      "DTL102"
+    ]
   },
-  "known_false_positives": {}
+  "known_false_positives": {},
+  "verify_must_report": {
+    "template_error_tpl.docx": [
+      "DTL402"
+    ]
+  },
+  "verify_unsupported": {
+    "custom_jinja_filters_tpl.docx": "custom filter my_filterB must be passed via jinja_env",
+    "escape_tpl_auto.docx": "calls iteritems(), a function passed in the context"
+  }
 }

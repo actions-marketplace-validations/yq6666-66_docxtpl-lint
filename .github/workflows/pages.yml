@@ -1,10 +1,12 @@
 name: Playground (GitHub Pages)
 # Deploys site/ + the current wheel to GitHub Pages.
-# Needs: Settings → Pages → Source: "GitHub Actions". Runs only on a published
-# release or when started by hand.
+# Needs: Settings → Pages → Source: "GitHub Actions". Runs on pushes to main
+# that touch the package or the site, or by hand. (A `release` trigger runs on the
+# tag ref, which the github-pages environment rejects by default.)
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths: ["src/**", "site/**", "scripts/build_site.sh", "examples/**", "pyproject.toml"]
   workflow_dispatch:
 permissions:
   contents: read

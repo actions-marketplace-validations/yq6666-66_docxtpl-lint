@@ -47,6 +47,28 @@ def run(templates: Path, expected: dict) -> dict:
         # an allow-listed false positive that no longer happens must be removed from expected.json
         result["stale_allowlist"] += [f"{f.name}:{r}" for r in known.get(f.name, []) if r not in rules]
     result["seconds"] = round(time.perf_counter() - t0, 2)
+    try:
+        import docxtpl  # noqa: F401
+    except ImportError:
+        result["verify"] = None
+        return result
+    from docxtpl_lint.verify import verify_path
+
+    # verify = infer sample data + render with the real docxtpl + look for lost output
+    vmust = expected.get("verify_must_report", {})
+    unsupported = expected.get("verify_unsupported", {})
+    v = {"rendered": 0, "unsupported": [], "false_positives": [], "missed": []}
+    for f in files:
+        rules = sorted({i.rule for i in verify_path(f).issues})
+        if not rules:
+            v["rendered"] += 1
+        want = set(vmust.get(f.name, []))
+        if f.name in unsupported and rules == ["DTL402"]:
+            v["unsupported"].append(f"{f.name}: {unsupported[f.name]}")
+            continue
+        v["false_positives"] += [f"{f.name}:{r}" for r in rules if r not in want]
+        v["missed"] += [f"{f.name}:{r}" for r in sorted(want - set(rules))]
+    result["verify"] = v
     return result
 
 
@@ -69,7 +91,20 @@ def main() -> int:
         print("  missed:", x)
     for x in res["stale_allowlist"]:
         print("  stale known_false_positives entry (remove it):", x)
+    v = res.get("verify")
+    if v is not None:
+        print(
+            f"verify (infer + render with docxtpl): {v['rendered']}/{res['files']} rendered with inferred data | "
+            f"false positives: {len(v['false_positives'])} | missed: {len(v['missed'])}"
+        )
+        for x in v["unsupported"]:
+            print("  needs Python objects:", x)
+        for x in v["false_positives"]:
+            print("  verify false positive:", x)
+        for x in v["missed"]:
+            print("  verify missed:", x)
     ok = res["files"] and not (res["false_positives"] or res["missed"] or res["stale_allowlist"])
+    ok = ok and not (v and (v["false_positives"] or v["missed"]))
     return 0 if ok else 1
 
 

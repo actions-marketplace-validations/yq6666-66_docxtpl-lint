@@ -3,4 +3,4 @@
 from .core import Issue, Location, lint_path
 
 __all__ = ["Issue", "Location", "lint_path"]
-__version__ = "0.2.0"
+__version__ = "1.0.0"

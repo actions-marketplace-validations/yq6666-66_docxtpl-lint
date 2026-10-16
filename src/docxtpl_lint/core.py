@@ -316,6 +316,16 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
             )
 
     for tg in tags:
+        # DTL209: patch_xml replaces the whole paragraph/row/cell with the bare tag
+        if tg.prefix in ("p", "tr", "tc") and (tg.kind == "stmt" or tg.prefix == "p") and tg.raw in tg.para.text:
+            rest = tg.para.text.replace(tg.raw, "", 1).strip()
+            if rest:
+                unit = {"p": "paragraph", "tr": "table row", "tc": "table cell"}[tg.prefix]
+                issues.append(
+                    Issue(
+                        "DTL209", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw, "rest": rest[:40], "unit": unit}
+                    )
+                )
         if tg.kind == "stmt" and _keyword(tg) in CELL_TAGS and not tg.para.cells:
             issues.append(Issue("DTL208", _loc(file, tg.para, tg.col), tg.raw, {"raw": tg.raw}))
         if tg.prefix in ("tr", "tc") and not tg.para.cells:
@@ -340,7 +350,17 @@ def check_docxtpl_tags(file: str, tags: list[Tag], paras: list[Paragraph]) -> li
         if op.spaced or tg.spaced:
             continue  # DTL202 already explains it
         issues.extend(_pair_issues(file, op, tg))
-    return issues
+    # a row already reported by DTL206 (render fails) needs no extra DTL209
+    rows206 = {(i.location.part, i.params["table"], i.params["row"]) for i in issues if i.rule == "DTL206"}
+    return [
+        i
+        for i in issues
+        if not (
+            i.rule == "DTL209"
+            and i.location.cells
+            and (i.location.part, i.location.cells[-1].table, i.location.cells[-1].row) in rows206
+        )
+    ]
 
 
 def _pair_issues(file: str, op: Tag, cl: Tag) -> list[Issue]:
@@ -355,6 +375,8 @@ def _pair_issues(file: str, op: Tag, cl: Tag) -> list[Issue]:
                 {
                     **base,
                     "open_loc": _where(op),
+                    "_open_paragraph": op.para.index,
+                    "_open_part": op.para.part,
                     "open_prefix": op.prefix or "-",
                     "close_prefix": cl.prefix or "-",
                 },
@@ -428,6 +450,14 @@ class Analysis:
     uses: list[tuple[str, Tag]] = field(default_factory=list)  # data paths, loop items as `x[]`
     guarded: set[str] = field(default_factory=set)  # `is defined` / `| default` paths
     iterables: list[tuple[str, Tag]] = field(default_factory=list)  # `for … in <path>`
+    numeric: set[str] = field(default_factory=set)  # input of round/int/float/abs or compared with a number
+    mappings: set[str] = field(default_factory=set)  # receiver of .items()/.keys()/.values()
+    # plain `{{ path }}` outputs: (path, tag, conditional) — conditional if inside if/else/for-else/x if y else z
+    outputs: list[tuple[str, Tag, bool]] = field(default_factory=list)
+
+
+NUMERIC_FILTERS = {"round", "int", "float", "abs", "filesizeformat"}
+MAPPING_METHODS = {"items", "keys", "values"}
 
 
 def _is_guard(n: Any) -> bool:
@@ -487,7 +517,47 @@ def analyse(tags: list[Tag]) -> Analysis:
     def names(t: nodes.Node) -> list[str]:
         return [t.name] if isinstance(t, nodes.Name) else [x.name for x in t.find_all(nodes.Name)]
 
+    depth = [0]  # >0 while inside a conditional branch
+
     def visit(n: nodes.Node, scope: dict[str, str | None]) -> None:
+        if isinstance(n, nodes.Filter) and n.name in NUMERIC_FILTERS and n.node is not None:
+            fp = path_of(n.node, scope)
+            if fp:
+                res.numeric.add(fp)
+        if isinstance(n, nodes.Compare):
+            sides = [n.expr, *(o.expr for o in n.ops)]
+            if any(
+                isinstance(x, nodes.Const) and isinstance(x.value, int | float) and not isinstance(x.value, bool)
+                for x in sides
+            ):
+                for x in sides:
+                    cp = path_of(x, scope)
+                    if cp:
+                        res.numeric.add(cp)
+        if isinstance(n, nodes.Mul | nodes.Div | nodes.FloorDiv | nodes.Mod | nodes.Sub | nodes.Pow | nodes.Neg):
+            for x in n.iter_child_nodes():
+                ap = path_of(x, scope)
+                if ap:
+                    res.numeric.add(ap)
+        if isinstance(n, nodes.Output):
+            for c in n.nodes:
+                if isinstance(c, nodes.Name | nodes.Getattr | nodes.Getitem):
+                    op_ = path_of(c, scope)
+                    if op_:
+                        res.outputs.append((op_, tag_for(c), depth[0] > 0))
+        if isinstance(n, nodes.If):
+            visit(n.test, scope)
+            depth[0] += 1
+            for c in [*n.body, *n.elif_, *n.else_]:
+                visit(c, scope)
+            depth[0] -= 1
+            return
+        if isinstance(n, nodes.CondExpr):
+            depth[0] += 1
+            for c in n.iter_child_nodes():
+                visit(c, scope)
+            depth[0] -= 1
+            return
         if _is_guard(n):
             gp = path_of(n.node, scope)  # type: ignore[attr-defined]
             if gp:
@@ -504,10 +574,17 @@ def analyse(tags: list[Tag]) -> Analysis:
             else:
                 for nm in names(n.target):
                     inner[nm] = None
-            for c in n.body + n.else_:
-                visit(c, inner)
             if n.test is not None:
                 visit(n.test, inner)
+                depth[0] += 1  # `for x in xs if cond`: items may be filtered out
+            for c in n.body:
+                visit(c, inner)
+            if n.test is not None:
+                depth[0] -= 1
+            depth[0] += 1
+            for c in n.else_:
+                visit(c, scope)
+            depth[0] -= 1
             return
         if isinstance(n, nodes.Assign | nodes.AssignBlock):
             if isinstance(n, nodes.Assign):
@@ -554,6 +631,10 @@ def analyse(tags: list[Tag]) -> Analysis:
             return
         if isinstance(n, nodes.Call) and isinstance(n.node, nodes.Getattr):
             # method call such as `m.items()`: only the receiver is data
+            if n.node.attr in MAPPING_METHODS:
+                mp = path_of(n.node.node, scope)
+                if mp:
+                    res.mappings.add(mp)
             visit(n.node.node, scope)
             for c in [*n.args, *n.kwargs]:
                 visit(c, scope)
@@ -650,6 +731,7 @@ def lint_path(
     contexts: list[Any] | None = None,
     allow_cross_paragraph: bool = False,
     report_unused_data: bool = False,
+    schema: dict[str, Any] | None = None,
 ) -> Report:
     """Lint one ``.docx`` template.
 
@@ -676,6 +758,10 @@ def lint_path(
     ctxs = list(contexts or []) + ([data] if data is not None else [])
     if ctxs:
         issues.extend(check_data(file, an, ctxs, report_unused_data))
+    if schema is not None:
+        from .contract import check_schema
+
+        issues.extend(check_schema(file, an, schema))
     disabled = disabled_rules(tags)
     if allow_cross_paragraph:
         disabled.add("DTL002")
@@ -684,6 +770,15 @@ def lint_path(
         rep.paragraphs.setdefault(p.part, []).append(p)
     rep.variables = sorted({p for p, _ in an.uses})
     return rep
+
+
+def template_tags(path: str | Path) -> tuple[list[Paragraph], list[Tag]]:
+    """Paragraphs and Jinja tags of a template (issues discarded)."""
+    paras = list(iter_paragraphs(path))
+    tags: list[Tag] = []
+    for part in dict.fromkeys(p.part for p in paras):
+        tags.extend(scan_tags(str(path), [p for p in paras if p.part == part], []))
+    return paras, tags
 
 
 def load_data(path: str | Path) -> Any:

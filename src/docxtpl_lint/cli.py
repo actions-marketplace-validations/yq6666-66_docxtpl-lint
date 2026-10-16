@@ -142,6 +142,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="docxtpl-lint",
         description="Static linter for docxtpl (python-docx-template) Word templates.",
+        epilog="subcommands: infer (data contract -> JSON Schema + sample), verify (render with docxtpl and find "
+        "silently lost output), diff (contract changes between two template versions), fix (suggested "
+        "fixes as diffs). Run `docxtpl-lint <subcommand> -h`.",
     )
     ap.add_argument("files", nargs="*", help=".docx templates")
     ap.add_argument(
@@ -149,6 +152,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         help="JSON file with a sample context; enables DTL301/DTL303. Repeatable: a path is only "
         "reported missing if it is missing from every file",
+    )
+    ap.add_argument(
+        "--schema",
+        help="JSON Schema used as the data contract (e.g. from `docxtpl-lint infer`); enables DTL304/DTL305",
     )
     ap.add_argument("--report-unused-data", action="store_true", help="also report unused top-level data keys (DTL302)")
     ap.add_argument("--format", choices=["text", "json", "github", "sarif"], default="text")
@@ -172,7 +179,123 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+SUBCOMMANDS = ("infer", "verify", "diff", "fix")
+
+
+def _reconf() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+
+
+def _write(text: str, out: str | None) -> None:
+    if out:
+        Path(out).write_text(text + "\n", encoding="utf-8")
+    else:
+        print(text)
+
+
+def main_infer(argv: list[str]) -> int:
+    from .contract import infer_tree, sample, to_schema
+
+    ap = argparse.ArgumentParser(
+        prog="docxtpl-lint infer",
+        description="Infer the data contract (JSON Schema) of one or more templates; several templates are merged "
+        "and each property lists the templates that use it (x-docxtpl-templates).",
+    )
+    ap.add_argument("files", nargs="+")
+    ap.add_argument("-o", "--output", help="write the JSON Schema here (default: stdout)")
+    ap.add_argument("--sample", help="also write sample data that satisfies the schema")
+    ap.add_argument("--items", type=int, default=2, help="list items in the sample (default 2)")
+    a = ap.parse_args(argv)
+    tree = infer_tree(a.files)
+    _write(json.dumps(to_schema(tree), indent=2, ensure_ascii=False), a.output)
+    if a.sample:
+        _write(json.dumps(sample(tree, a.items), indent=2, ensure_ascii=False), a.sample)
+    return 0
+
+
+def main_verify(argv: list[str]) -> int:
+    from .verify import verify_path
+
+    ap = argparse.ArgumentParser(
+        prog="docxtpl-lint verify",
+        description="Render each template with real docxtpl and sentinel data and report output that is silently "
+        "lost (DTL401) or a failing render (DTL402). Needs docxtpl.",
+    )
+    ap.add_argument("files", nargs="+")
+    ap.add_argument("--data", help="render with this JSON instead of inferred sentinel data (only DTL402)")
+    ap.add_argument("--format", choices=["text", "json"], default="text")
+    ap.add_argument("--lang", choices=["en", "zh"], default="en")
+    a = ap.parse_args(argv)
+    data = load_data(a.data) if a.data else None
+    try:
+        reports = [verify_path(f, data) for f in a.files]
+    except RuntimeError as exc:
+        print(f"docxtpl-lint: {exc}", file=sys.stderr)
+        return 2
+    print(render_json(reports, a.lang) if a.format == "json" else render_text(reports, False, False, a.lang, 1))
+    return 1 if any(r.issues for r in reports) else 0
+
+
+def main_diff(argv: list[str]) -> int:
+    from .contract import diff, infer_tree
+
+    ap = argparse.ArgumentParser(
+        prog="docxtpl-lint diff",
+        description="Compare the data contracts of two template versions (breaking = data producers must change).",
+    )
+    ap.add_argument("old")
+    ap.add_argument("new")
+    ap.add_argument("--format", choices=["text", "json"], default="text")
+    ap.add_argument("--fail-on-breaking", action="store_true", help="exit 1 if there is a breaking change")
+    a = ap.parse_args(argv)
+    changes = diff(infer_tree([a.old]), infer_tree([a.new]))
+    if a.format == "json":
+        print(json.dumps([c.to_dict() for c in changes], indent=2, ensure_ascii=False))
+    elif not changes:
+        print("data contract unchanged")
+    else:
+        for c in changes:
+            mark = "BREAKING" if c.breaking else "ok      "
+            sign = {"added": "+", "removed": "-", "type": "~", "optional": "~"}[c.kind]
+            detail = f"  ({c.detail})" if c.detail else ""
+            print(f"{mark} {sign} {c.path.replace('[]', '[*]')}{detail}")
+        nb = sum(c.breaking for c in changes)
+        print(f"\n{len(changes)} change(s), {nb} breaking")
+    return 1 if a.fail_on_breaking and any(c.breaking for c in changes) else 0
+
+
+def main_fix(argv: list[str]) -> int:
+    from .fixes import suggest
+
+    ap = argparse.ArgumentParser(
+        prog="docxtpl-lint fix",
+        description="Print fix suggestions as unified diffs of the paragraph text. The .docx is never modified.",
+    )
+    ap.add_argument("files", nargs="+")
+    ap.add_argument("--data", action="append", help="sample data, enables `did you mean` for DTL301")
+    ap.add_argument("--format", choices=["diff", "json"], default="diff")
+    ap.add_argument("--lang", choices=["en", "zh"], default="en")
+    a = ap.parse_args(argv)
+    contexts = [load_data(d) for d in a.data or []]
+    allfx = []
+    for f in a.files:
+        allfx += suggest(lint_path(f, contexts=contexts), contexts)
+    if a.format == "json":
+        print(json.dumps([x.to_dict() for x in allfx], indent=2, ensure_ascii=False))
+    elif allfx:
+        print("\n\n".join(x.diff(a.lang) for x in allfx))
+    else:
+        print("no fix suggestions")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] in SUBCOMMANDS:
+        _reconf()
+        return {"infer": main_infer, "verify": main_verify, "diff": main_diff, "fix": main_fix}[argv[0]](argv[1:])
     ap = build_parser()
     pre, _ = ap.parse_known_args(argv)
     if not pre.no_config:
@@ -214,6 +337,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"docxtpl-lint: cannot read --data: {exc}", file=sys.stderr)
             return 2
 
+    schema = None
+    if args.schema:
+        from .contract import load_schema
+
+        try:
+            schema = load_schema(args.schema)
+        except (OSError, ValueError) as exc:
+            print(f"docxtpl-lint: cannot read --schema: {exc}", file=sys.stderr)
+            return 2
+
     sel = [s.strip() for s in args.select.split(",")] if args.select else None
     ign = [s.strip() for s in args.ignore.split(",")] if args.ignore else []
 
@@ -228,6 +361,7 @@ def main(argv: list[str] | None = None) -> int:
                 contexts=contexts,
                 allow_cross_paragraph=args.allow_cross_paragraph,
                 report_unused_data=args.report_unused_data,
+                schema=schema,
             )
         except Exception as exc:
             print(f"docxtpl-lint: cannot read {f} (is it a .docx?): {exc}", file=sys.stderr)

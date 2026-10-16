@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install -e .
+      - run: pip install -e .[render]
       - run: git clone --depth 1 https://github.com/elapouya/python-docx-template /tmp/docxtpl
       - run: python scripts/benchmark.py /tmp/docxtpl/tests/templates --json benchmark-result.json
       - run: cat benchmark-result.json >> "$GITHUB_STEP_SUMMARY"

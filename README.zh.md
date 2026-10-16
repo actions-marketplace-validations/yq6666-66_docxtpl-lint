@@ -3,10 +3,10 @@
 [English](README.md) | 中文
 
 **一个用于 [docxtpl](https://github.com/elapouya/python-docx-template)（python-docx-template）Word 模板的静态检查工具。
-它能把每个问题定位到具体的表格单元格，在一次运行中报告所有问题，并返回可供 CI 使用的退出码。**
+它能将每个问题定位到确切的表格单元格，一次运行报告所有问题，并返回可供 CI 使用的退出码。**
 
 **[▶ 在浏览器中试用](https://yq6666-66.github.io/docxtpl-lint/)**：拖入一个 `.docx` 即可查看报告。文件永远不会
-离开你的电脑；检查工具通过 Pyodide 在本地运行。
+离开你的电脑；该检查工具通过 Pyodide 在本地运行。
 
 ![docxtpl-lint 输出](https://raw.githubusercontent.com/yq6666-66/docxtpl-lint/main/docs/demo-zh.svg)
 
@@ -20,47 +20,80 @@ jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endfor'. Jinja w
 
 ## 基准测试：docxtpl 自带的模板
 
-python-docx-template 的 `tests/templates` 中有 40 个模板，由 docxtpl 维护者编写，均能正确渲染，
-除了 `template_error_tpl.docx`，它是故意写坏的。CI 每周都会检查所有这些模板
+python-docx-template 的 `tests/templates` 中的 40 个模板由 docxtpl 维护者编写，可正确渲染，
+除了 `template_error_tpl.docx`，它是故意损坏的。CI 每周对它们全部进行检查
 （[`scripts/benchmark.py`](scripts/benchmark.py)、[`benchmark/expected.json`](benchmark/expected.json)）：
 
 | 版本 | 误报 | 发现的故意错误 |
 |---|---|---|
 | 0.1.0 | 7（`cellbg`/`colspan`/`vm`/`hm` 标签、Word 智能引号） | 是（DTL102） |
 | 0.2.0 | **0** | 是（DTL102） |
+| 1.0.0 | **0** | 是（DTL102） |
 
-全部 40 个模板的检查耗时约 0.1 秒。
+全部 40 个模板的检查耗时约 0.1 秒。自 1.0 起，基准测试还会运行 `verify`（推断示例数据，然后用真正的 docxtpl 渲染）：
+40 个模板中有 37 个仅凭推断数据即可渲染，且 0 个 DTL401 误报。其余三个分别是故意损坏的模板，以及两个需要 Python 对象的模板（一个自定义 Jinja 过滤器、一个传入上下文的函数）。
+
+## 1.0 的新特性：从检查到数据契约
+
+有五件事是其他 docxtpl 工具都做不到的（推理过程见 [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md)）：
+
+| | 命令 | 你能得到什么 |
+|---|---|---|
+| 1 | `docxtpl-lint infer a.docx b.docx -o schema.json --sample sample.json` | 模板的**数据契约，以 JSON Schema 表示**（来自 `for` 循环的列表、嵌套字段、来自 `round`/算术/比较的数字、来自 `is defined`/`default` 的可选字段），跨模板合并，每个字段带 `x-docxtpl-templates`，外加可渲染的示例数据 |
+| 2 | `docxtpl-lint verify a.docx` | **渲染等价性检查**：用真正的 docxtpl 和唯一哨兵值渲染，然后报告每一个静默消失的 `{{ value }}`（DTL401）或渲染失败（DTL402）。需要 `pip install "docxtpl-lint[render]"` |
+| 3 | `docxtpl-lint diff old.docx new.docx --fail-on-breaking` | **模板版本之间的契约差异**：新增必填字段、列表 ↔ 对象变更、可选 → 必填属于破坏性变更；移除字段不属于；重命名会给出提示 |
+| 4 | `docxtpl-lint a.docx --schema schema.json` | **模式一致性**：每个变量都必须在契约中声明（DTL304），循环必须遍历数组（DTL305） |
+| 5 | `docxtpl-lint fix a.docx` | **以统一 diff 形式给出的修复建议**：`{% tr` → `{%tr`、前缀不匹配、`endfro` → `endfor`、`iff` → `if`、`custmer` → `customer`（配合 `--data`）。`.docx` 永远不会被改写；每种修复都会通过应用它并用 docxtpl 渲染来测试 |
+
+`verify` 发现了 docxtpl 的一个没有任何规则覆盖的行为：紧邻 `{%p %}`、`{%tr %}` 或 `{%tc %}` 标签的文本会
+在输出中被丢弃而不报错。这现在是静态规则 **DTL209**。在线试用页（Playground）也会显示修复建议以及推断出的模式/示例数据。
+
+```console
+$ docxtpl-lint verify invoice.docx
+invoice.docx:body ¶1:7: error DTL401 `{{ total }}` was rendered by docxtpl but its value does not appear in the output document
+    {{ total }}
+      > ¶1             | Total {{ total }} {%p if x %}
+        ¶2             | {%p endif %}
+```
 
 ## 特性
 
-- **表格单元格位置。** 每个问题都会指明所在部分（正文、`header1`、`footer2`、脚注）、段落，对于表格
+- **表格单元格位置。** 每个问题都会指明部件（正文、`header1`、`footer2`、脚注）、段落，对于表格
   还会给出类似 `T1 R2 C2 > T2 R2 C1` 的路径（表格、行、列；支持嵌套表格）。有问题的标签文本始终会被打印出来。
-- **一次运行报告所有块级问题。** 未闭合的 `if`/`for`、多余的 `endfor`/`else`，以及永不闭合的标签，都会通过
-  检查工具自己的标签栈被发现，因此你无需反复修复-渲染。其他 Jinja 语法错误按文档部分各报告一次，
-  与 Jinja 本身的行为一致。
-- **了解 docxtpl 自己的标签。** `{%tr %}`、`{%tc %}`、`{%p %}`、`{%r %}`。每条 docxtpl 规则都有一个测试，会用真实的 docxtpl
+- **一次运行找出所有块级问题。** 未闭合的 `if`/`for`、多余的 `endfor`/`else`，以及永不闭合的标签，都会用
+  检查工具自己的标签栈找出，因此你无需反复修复-渲染。其他 Jinja 语法错误会像 Jinja 本身那样，每个文档部件报告一次。
+- **了解 docxtpl 自己的标签。** `{%tr %}`、`{%tc %}`、`{%p %}`、`{%r %}`。每条 docxtpl 规则都有一个测试，用真正的 docxtpl
   渲染一个坏模板，并检查它确实会出错。
-- **用示例数据检查模板。** `--data sample.json` 会检查每个变量路径，包括嵌套字段和
+- **用示例数据检查模板。** `--data sample.json` 检查每个变量路径，包括嵌套字段和
   循环项，如 `items[*].price`。用 `is defined` 或 `| default(...)` 保护的路径不会被报告。
-- **为 CI 而构建。** 退出码、`--format json|github|sarif`、一个 GitHub Action 和一个 pre-commit 钩子。
-- **只读。** 你的 `.docx` 永远不会被修改。检查工具用 lxml 读取 OOXML，不导入 docxtpl。
+- **为 CI 而生。** 退出码、`--format json|github|sarif`、一个 GitHub Action 和一个 pre-commit 钩子。
+- **只读。** 你的 `.docx` 永远不会被修改。检查工具用 lxml 读取 OOXML，不导入 docxtpl
+  （只有 `verify` 会，通过可选的 `[render]` 附加项）。
 
 ## 安装
 
+尚未发布到 PyPI。从 GitHub 安装（一个发布标签或附加到 [release](https://github.com/yq6666-66/docxtpl-lint/releases) 的 wheel）：
+
 ```sh
-pip install docxtpl-lint
+pip install "docxtpl-lint @ git+https://github.com/yq6666-66/docxtpl-lint@v1.0.0"
+pip install "docxtpl-lint[render] @ git+https://github.com/yq6666-66/docxtpl-lint@v1.0.0"   # + verify
 ```
 
 ## 用法
 
 ```sh
 docxtpl-lint templates/*.docx
-docxtpl-lint contract.docx --data sample.json            # + 数据检查（可重复 --data 以提供多个上下文）
-docxtpl-lint contract.docx --format json > report.json   # 机器可读（schema_version: 1）
-docxtpl-lint contract.docx --list-vars                   # 这个模板需要哪些数据？
+docxtpl-lint contract.docx --data sample.json            # + data checks (repeat --data for several contexts)
+docxtpl-lint contract.docx --format json > report.json   # machine readable (schema_version: 1)
+docxtpl-lint contract.docx --list-vars                   # which data does this template need?
 docxtpl-lint contract.docx --lang zh                     # 中文提示
-docxtpl-lint contract.docx --context 2                   # 显示每个问题周围的 2 个段落
+docxtpl-lint contract.docx --context 2                   # show 2 paragraphs around each issue
 docxtpl-lint --list-rules
+docxtpl-lint infer contract.docx -o schema.json --sample sample.json
+docxtpl-lint contract.docx --schema schema.json           # DTL304/305
+docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
+docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
+docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs, never writes
 ```
 
 | 退出码 | 含义 |
@@ -72,7 +105,7 @@ docxtpl-lint --list-rules
 其他选项：`--select DTL1,DTL206`、`--ignore DTL2`（前缀匹配）、`--allow-cross-paragraph`、
 `--report-unused-data`、`--warnings-as-errors`、`--no-color`。
 
-`--context N` 会打印周围段落及其表格位置，让你无需打开 Word 就能找到位置。
+`--context N` 会打印周围段落及其表格位置，这样你无需打开 Word 就能找到位置。
 在终端中默认为 1，在 CI 日志和管道中默认为 0。
 
 ### 配置
@@ -82,52 +115,57 @@ docxtpl-lint --list-rules
 ```toml
 [tool.docxtpl-lint]
 ignore = ["DTL002"]
-data = ["tests/sample_context.json"]  # 相对于此 pyproject.toml
+data = ["tests/sample_context.json"]  # relative to this pyproject.toml
 warnings-as-errors = true
-lang = "en"                           # 或 "zh"
-# 还有：select, allow-cross-paragraph, report-unused-data, context
+lang = "en"                           # or "zh"
+# also: select, allow-cross-paragraph, report-unused-data, context
 ```
 
 使用 `--config path/to/pyproject.toml` 指定文件，或用 `--no-config` 忽略它。
 
-要为某个模板静默规则，可在其中任意位置放一条 Jinja 注释（docxtpl 会将其渲染为空）：
+要为某个模板静默规则，可在其中任意位置放入 Jinja 注释（docxtpl 会将其渲染为空）：
 `{# docxtpl-lint: disable=DTL301,DTL002 #}`
 
 ## 规则
 
 每条规则都有示例和修复方法，见 [docs/rules.md](docs/rules.md)。JSON 和 SARIF 输出会链接到对应条目。
 
-| id | 严重级别 | 内容 | docxtpl 的行为 |
+| id | 严重性 | 内容 | docxtpl 的行为 |
 |---|---|---|---|
-| DTL001 | error | 一个 `{{`、`{%` 或 `{#` 从未闭合 | 抛出异常 |
-| DTL002 | warning | 一个标签跨越多个段落 | 合并这些段落，因此其格式会丢失 |
+| DTL001 | error | 一个 `{{`、`{%` 或 `{#` 永不闭合 | 抛出异常 |
+| DTL002 | warning | 一个标签跨越多个段落 | 合并段落，因此其格式会丢失 |
 | DTL101 | error | 未闭合的 `if` / `for` / `with` / ... | 抛出异常，无位置信息 |
-| DTL102 | error | 没有对应块的 `endX` / `else` / `elif` | 抛出异常，无位置信息 |
+| DTL102 | error | `endX` / `else` / `elif` 没有对应的块 | 抛出异常，无位置信息 |
 | DTL103 | error | 其他 Jinja2 语法错误，包括 `{% do %}` / `{% break %}`（docxtpl 中未启用） | 抛出异常 |
 | DTL201 | error | `{%p/tr/tc/r … %}` 内的 `%` 或 `}` | 抛出异常（[#644](https://github.com/elapouya/python-docx-template/issues/644)） |
 | DTL202 | error | `{% tr …`：`tr`/`tc`/`p`/`r` 前缀前有空格 | 抛出 "unknown tag" |
-| DTL203 | error | 表格外的 `tr`/`tc` 标签 | 抛出异常 |
+| DTL203 | error | `tr`/`tc` 标签在表格之外 | 抛出异常 |
 | DTL204 | error | 前缀不匹配，例如 `{% for %}` … `{%tr endfor %}` | **静默地**丢失循环行（[#603](https://github.com/elapouya/python-docx-template/issues/603)） |
 | DTL205 | error | `{%tr for %}` 和 `{%tr endfor %}` 在不同的表格中 | **静默地**丢失行 |
 | DTL206 | error | `{%tr for %}` 和 `{%tr endfor %}` 在同一行中 | 抛出异常 |
 | DTL207 | error | `{%tc for %}` 和 `{%tc endfor %}` 在不同的行中 | **静默地**破坏表格 |
 | DTL208 | error | `{% cellbg %}` / `{% colspan %}` / `{% vm %}` / `{% hm %}` 在表格单元格之外 | 抛出 "unknown tag" |
-| DTL301 | error | （`--data`）变量在所有示例上下文中都缺失 | 渲染为空或抛出异常 |
+| DTL209 | error | 紧邻 `{%p %}` / `{%tr %}` / `{%tc %}` 标签的其他文本 | **静默地**丢弃该文本 |
+| DTL301 | error | （`--data`）变量在每个示例上下文中都缺失 | 渲染为空或抛出异常 |
 | DTL302 | warning | （`--report-unused-data`）顶层数据键从未被使用 | 不适用 |
-| DTL303 | error | （`--data`）对数字 / 布尔值 / null 进行 `for` | 渲染时抛出异常 |
+| DTL303 | error | （`--data`）对数字 / 布尔值 / null 进行 `for` | 在渲染时抛出异常 |
+| DTL304 | error | （`--schema`）变量未在 JSON Schema 中声明 | 不适用（契约） |
+| DTL305 | error | （`--schema`）对模式声明为数字 / 布尔值 / null 的值进行 `for` | 在渲染时抛出异常 |
+| DTL401 | error | （`verify`）渲染出的 `{{ value }}` 在输出中缺失 | **静默地**丢失内容 |
+| DTL402 | error | （`verify`）docxtpl 无法用推断的 / 给定的数据渲染 | 抛出异常 |
 
-### 上游问题 → 规则
+### 上游 issue → 规则
 
-| python-docx-template 问题 | 由以下规则覆盖 |
+| python-docx-template issue | 由以下规则覆盖 |
 |---|---|
 | [#378](https://github.com/elapouya/python-docx-template/issues/378)："help to locate the error in the template" | 每条规则的位置；DTL101/102/103 |
 | [#603](https://github.com/elapouya/python-docx-template/issues/603)："Why can't it loop in the table?" | DTL202、DTL204、DTL205、DTL206、DTL207 |
 | [#644](https://github.com/elapouya/python-docx-template/issues/644)：`{%p %}` 遇到 `%` 或 `}` 时失败 | DTL201 |
-| [#538](https://github.com/elapouya/python-docx-template/issues/538) / [#391](https://github.com/elapouya/python-docx-template/issues/391)：模板使用了哪些（嵌套）变量？ | `--list-vars`、DTL301 |
+| [#538](https://github.com/elapouya/python-docx-template/issues/538) / [#391](https://github.com/elapouya/python-docx-template/issues/391)：模板使用了哪些（嵌套）变量？ | `--list-vars`、`infer`（JSON Schema）、DTL301 |
 
 ## 在 CI 中使用
 
-**GitHub Action**（注释会出现在运行记录和 PR 中）：
+**GitHub Action**（注解会出现在运行记录和 PR 中）：
 
 ```yaml
 - uses: actions/checkout@v4
@@ -155,21 +193,20 @@ repos:
 
 - 运行时错误：未知过滤器、类型错误、失败的 `include`、宏签名不匹配、自定义
   `jinja_env` 扩展。检查工具假定使用 docxtpl 默认的 `jinja2.Environment()`。
-- docxtpl 不渲染的部分：尾注、批注、图表、嵌入对象。文本框作为其段落的一部分被检查。
-- `¶N` 统计该部分的每个 `<w:p>`，包括表格单元格内的空段落。请使用表格路径和打印的
+- docxtpl 不渲染的部件：尾注、批注、图表、嵌入对象。文本框作为其段落的一部分被检查。
+- `¶N` 会统计该部件的每个 `<w:p>`，包括表格单元格内的空段落。使用表格路径和打印出的
   片段来在 Word 中找到位置。
 - DTL201 遵循 docxtpl ≤ 0.20.2 的正则。如果上游放宽了它（开放的 PR
   [#645](https://github.com/elapouya/python-docx-template/pull/645)），请使用 `--ignore DTL201`。
 
-## 相关项目
+## 相关
 
 splittist 的 [lintxtpl](https://github.com/splittist/lintxtpl) 是第一个用于 docxtpl 模板的检查工具，可以写出带
-Word 批注的标注 `.docx`。docxtpl-lint 专注于表格单元格位置、docxtpl 特有的规则以及针对
-示例数据的检查。
+Word 批注的标注 `.docx`。docxtpl-lint 专注于表格单元格位置、docxtpl 特有的规则以及针对示例数据的检查。
 
 ## 贡献
 
-见 [CONTRIBUTING.md](CONTRIBUTING.md)。每条新的 docxtpl 规则都需要在 `tests/rule_cases.py` 中有一个用真实 docxtpl 渲染的用例。
+见 [CONTRIBUTING.md](CONTRIBUTING.md)。每条新的 docxtpl 规则都需要在 `tests/rule_cases.py` 中有一个用真正的 docxtpl 渲染的用例。
 
 ## 许可证
 

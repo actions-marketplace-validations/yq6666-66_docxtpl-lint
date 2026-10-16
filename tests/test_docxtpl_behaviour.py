@@ -24,6 +24,11 @@ def test_docxtpl_really_behaves_as_documented(case, tmp_path):
         return
     tpl.render(CTX)
     tpl.save(str(out))
+    if case.lost:
+        doc = Document(str(out))
+        text = [p.text for p in doc.paragraphs] + _cells(out)
+        assert not any(case.lost in t for t in text)
+        return
     if case.docxtpl == "silent":
         # renders without error, but the loop output ("1", "2") is lost or mangled
         cells = _cells(out)

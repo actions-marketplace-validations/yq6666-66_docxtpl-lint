@@ -30,10 +30,11 @@ The file never leaves your computer: the linter runs locally via <a href="https:
   <button data-ex="issue603_table_loop.docx">#603 table loops</button>
   <button data-ex="issue644_percent.docx">#644 % in {%p %}</button>
   <button data-ex="clean.docx">clean</button>
+  <label>Show <select id="mode"><option value="lint">Issues + fix suggestions</option><option value="schema">Data contract (JSON Schema)</option><option value="sample">Sample data (JSON)</option></select></label>
   <label>Language <select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label>
 </div>
 <pre id="out"><span class="dim">Loading Python (first visit ~10 MB, then cached)…</span></pre>
-<footer>Not affiliated with python-docx-template. Same rules as <code>pip install docxtpl-lint</code>; data checks (<code>--data</code>) are CLI-only.</footer>
+<footer>Not affiliated with python-docx-template. Same rules as the <code>docxtpl-lint</code> CLI; data checks (<code>--data</code>, <code>--schema</code>) and <code>verify</code> (needs docxtpl) are CLI-only.</footer>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
 <script>
@@ -51,10 +52,22 @@ import micropip
 await micropip.install("emfs:/tmp/${wheel}", deps=False)
 from docxtpl_lint import lint_path, __version__
 from docxtpl_lint.cli import render_text
-def run(path, name, lang):
+def run(path, name, lang, mode="lint"):
+    import json
+    from docxtpl_lint.contract import infer_tree, sample, to_schema
+    from docxtpl_lint.fixes import suggest
+    if mode in ("schema", "sample"):
+        tree = infer_tree([path])
+        doc = to_schema(tree, title=name) if mode == "schema" else sample(tree)
+        return json.dumps(doc, indent=2, ensure_ascii=False).replace("in.docx", name)
     rep = lint_path(path)
     rep.file = name
-    return render_text([rep], color=False, lang=lang, context=1)
+    text = render_text([rep], color=False, lang=lang, context=1)
+    fixes = suggest(rep)
+    if fixes:
+        text += "\n\n" + ("建议的修改" if lang == "zh" else "Suggested fixes") + " (docxtpl-lint fix):\n\n"
+        text += "\n\n".join(f.diff(lang) for f in fixes)
+    return text
 `);
   out.innerHTML = '<span class="ok">Ready</span> <span class="dim">docxtpl-lint ' + py.globals.get("__version__") + "</span>";
   return py;
@@ -66,7 +79,8 @@ async function lint(name, bytes) {
   const py = await ready;
   py.FS.writeFile("/tmp/in.docx", bytes);
   try {
-    const text = py.globals.get("run")("/tmp/in.docx", name, document.getElementById("lang").value);
+    const text = py.globals.get("run")("/tmp/in.docx", name, document.getElementById("lang").value,
+                                       document.getElementById("mode").value);
     out.innerHTML = esc(text)
       .replace(/ (error) (DTL\d+)/g, ' <span class="err">$1 <b>$2</b></span>')
       .replace(/ (warning) (DTL\d+)/g, ' <span class="warn">$1 <b>$2</b></span>')
@@ -90,6 +104,7 @@ document.querySelectorAll("[data-ex]").forEach((b) => b.onclick = async () => {
   lint(name, new Uint8Array(await (await fetch("examples/" + name)).arrayBuffer()));
 });
 document.getElementById("lang").onchange = () => { if (lastBytes) lint(lastName, lastBytes); };
+document.getElementById("mode").onchange = () => { if (lastBytes) lint(lastName, lastBytes); };
 </script>
 </body>
 </html>

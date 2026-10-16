@@ -18,6 +18,7 @@ class Case:
     build: Callable
     rules: list[str]  # expected docxtpl-lint rules
     docxtpl: str  # "ok" | "raises" | "silent"
+    lost: str = ""  # for "silent": text that must be missing from docxtpl's output
 
 
 def _table(d, rows, cols, cells):
@@ -78,6 +79,21 @@ CASES = [
         lambda d: [_table(d, 1, 1, {(0, 0): "{%tr for i in xs %}"}), _table(d, 1, 1, {(0, 0): "{%tr endfor %}"})],
         ["DTL205"],
         "silent",
+    ),
+    # DTL209: text next to a {%p %}/{%tr %} tag is dropped by docxtpl without error
+    Case(
+        "dtl209_bad_p",
+        lambda d: [d.add_paragraph("Total: {{ v }} {%p if x %}"), d.add_paragraph("{%p endif %}")],
+        ["DTL209"],
+        "silent",
+        lost="Total",
+    ),
+    Case(
+        "dtl209_bad_tr",
+        lambda d: _table(d, 3, 1, {(0, 0): "Items {%tr for i in xs %}", (1, 0): "{{ i }}", (2, 0): "{%tr endfor %}"}),
+        ["DTL209"],
+        "silent",
+        lost="Items",
     ),
     # DTL206
     Case(

@@ -24,4 +24,16 @@ if (text !== expected) {
   console.error("Pyodide output differs from CPython:\n--- pyodide\n" + text + "\n--- cpython\n" + expected);
   process.exit(1);
 }
-console.log("pyodide smoke OK: output identical to CPython");
+py.FS.writeFile("/tmp/s.docx", fs.readFileSync(path.join(site, "examples", "issue603_table_loop.docx")));
+const schema = await py.runPythonAsync(`
+import json
+from docxtpl_lint.contract import infer_tree, to_schema
+s = to_schema(infer_tree(["/tmp/s.docx"]))
+json.dumps(s, indent=2).replace('"s.docx"', '"issue603_table_loop.docx"')
+`);
+const expSchema = fs.readFileSync(path.join(site, "expected_schema.json"), "utf8");
+if (schema !== expSchema) {
+  console.error("Pyodide schema differs from CPython:\n" + schema + "\n---\n" + expSchema);
+  process.exit(1);
+}
+console.log("pyodide smoke OK: lint output and inferred schema identical to CPython");

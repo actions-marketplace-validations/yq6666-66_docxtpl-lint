@@ -121,6 +121,15 @@ _RULES = [
         "`{raw}` 只能写在表格单元格里；放在别处时 docxtpl 不会处理它，Jinja 会报 unknown tag",
     ),
     Rule(
+        "DTL209",
+        "error",
+        "other content next to a {%p/tr/tc %} tag is silently dropped",
+        "`{raw}` makes docxtpl replace the whole {unit} with the tag, so `{rest}` next to it disappears "
+        "from the output without any error. Move that content to its own paragraph",
+        "`{raw}` 会让 docxtpl 把整个{unit}替换成这个标签，旁边的 `{rest}` 会在输出中静默消失、不报任何错。"
+        "请把这些内容放到单独的段落",
+    ),
+    Rule(
         "DTL301",
         "error",
         "variable missing from --data",
@@ -140,6 +149,34 @@ _RULES = [
         "loop over a non-iterable value from --data",
         "`{{% for … in {path} %}}` but `{path}` is a {type} in the data file",
         "`{{% for … in {path} %}}` 中的 `{path}` 在数据文件里是 {type}，不能循环",
+    ),
+    Rule(
+        "DTL304",
+        "error",
+        "variable not declared in --schema",
+        "`{path}` is not declared in the JSON Schema (data contract)",
+        "`{path}` 没有在 JSON Schema（数据契约）里声明",
+    ),
+    Rule(
+        "DTL305",
+        "error",
+        "loop over a value the --schema declares as non-iterable",
+        "`{{% for … in {path} %}}` but the schema declares `{path}` as {type}",
+        "`{{% for … in {path} %}}` 中的 `{path}` 在 schema 里声明为 {type}，不能循环",
+    ),
+    Rule(
+        "DTL401",
+        "error",
+        "verify: output silently lost when rendered by docxtpl",
+        "`{raw}` was rendered by docxtpl but its value does not appear in the output document",
+        "docxtpl 渲染了 `{raw}`，但它的值没有出现在输出文档里（内容被静默丢掉）",
+    ),
+    Rule(
+        "DTL402",
+        "error",
+        "verify: docxtpl fails to render the template",
+        "docxtpl failed to render the template with the inferred sample data: {error}",
+        "用推断出的示例数据渲染时 docxtpl 报错：{error}",
     ),
 ]
 

@@ -25,9 +25,14 @@ Rules can be suppressed for a whole file with a Jinja comment:
 | [DTL206](#dtl206) | error | {%tr %} open and close in the same row |
 | [DTL207](#dtl207) | error | {%tc %} block must stay inside one row |
 | [DTL208](#dtl208) | error | cellbg/colspan/vm/hm tag outside a table cell |
+| [DTL209](#dtl209) | error | other content next to a {%p/tr/tc %} tag is silently dropped |
 | [DTL301](#dtl301) | error | variable missing from --data |
 | [DTL302](#dtl302) | warning | data key never used (--report-unused-data) |
 | [DTL303](#dtl303) | error | loop over a non-iterable value from --data |
+| [DTL304](#dtl304) | error | variable not declared in --schema |
+| [DTL305](#dtl305) | error | loop over a value the --schema declares as non-iterable |
+| [DTL401](#dtl401) | error | verify: output silently lost when rendered by docxtpl |
+| [DTL402](#dtl402) | error | verify: docxtpl fails to render the template |
 
 <a id="dtl001"></a>
 ## DTL001 — tag never closed
@@ -294,6 +299,28 @@ cell: {% cellbg 'FFFF00' %}Total
 
 **docxtpl behaviour.** raises 'unknown tag' (cellbg/colspan/vm/hm are only rewritten inside table cells).
 
+<a id="dtl209"></a>
+## DTL209 — other content next to a {%p/tr/tc %} tag is silently dropped
+
+**What it means.** docxtpl replaces the *whole* paragraph (`{%p`), table row (`{%tr`) or table cell (`{%tc`) with the bare tag. Any other text or `{{ … }}` in the same paragraph is removed from the output, without an error. Found with `docxtpl-lint verify`, then turned into this static rule. Only text in the tag's own paragraph is checked (other cells of a `{%tr` row are dropped too).
+
+**Bad**
+
+```jinja
+Total: {{ total }} {%p if show_details %}
+{%p endif %}
+```
+
+**Fix**
+
+```jinja
+Total: {{ total }}
+{%p if show_details %}
+{%p endif %}
+```
+
+**docxtpl behaviour.** renders without error, but `Total: …` is missing from the output.
+
 <a id="dtl301"></a>
 ## DTL301 — variable missing from --data
 
@@ -344,3 +371,81 @@ cell: {% cellbg 'FFFF00' %}Total
 ```
 
 **docxtpl behaviour.** (only with `--data`) raises at render time (number/boolean/null not iterable; strings are not flagged).
+
+<a id="dtl304"></a>
+## DTL304 — variable not declared in --schema
+
+**What it means.** With `--schema contract.json` (for example produced by `docxtpl-lint infer`), a path the template uses is not declared in the schema's `properties` / `items`. Guarded paths (`is defined`, `| default`) are skipped.
+
+**Bad** (schema declares only `customer.name`)
+
+```jinja
+{{ customer.adress }}
+```
+
+**Fix**
+
+```jinja
+{{ customer.address }}   {# and declare it in the schema #}
+```
+
+**docxtpl behaviour.** (only with `--schema`) the data producer does not know it must send this value; docxtpl renders an empty string.
+
+<a id="dtl305"></a>
+## DTL305 — loop over a value the --schema declares as non-iterable
+
+**What it means.** `{% for … in x %}` but the schema declares `x` as a number, boolean or null.
+
+**Bad** (schema: `"count": {"type": "number"}`)
+
+```jinja
+{% for i in count %}{{ i }}{% endfor %}
+```
+
+**Fix**
+
+```jinja
+{% for i in range(count) %}{{ i }}{% endfor %}
+```
+
+**docxtpl behaviour.** (only with `--schema`) raises `TypeError` at render time with data that follows the schema.
+
+<a id="dtl401"></a>
+## DTL401 — verify: output silently lost when rendered by docxtpl
+
+**What it means.** Reported only by `docxtpl-lint verify`. The template is rendered by the real docxtpl with sentinel data (every printed value gets a unique token such as `DTLV3Q`, every list gets one item). An unconditional `{{ path }}` whose token is missing from the rendered document was lost. Outputs inside `if`/`else`, `for … if`, loop `else` and `x if y else z`, filtered outputs, `{{r …}}`/`{{p …}}`, numbers and objects are not checked: a DTL401 is always real, but no DTL401 is not a proof.
+
+**Bad**
+
+```jinja
+{%tr for i in items %} {{ i.name }}      (same cell)
+```
+
+**Fix**
+
+```jinja
+{%tr for i in items %}                   (row of its own)
+{{ i.name }}
+{%tr endfor %}
+```
+
+**docxtpl behaviour.** renders without error; the value is missing from the output.
+
+<a id="dtl402"></a>
+## DTL402 — verify: docxtpl fails to render the template
+
+**What it means.** Reported only by `docxtpl-lint verify`: rendering with the inferred sample data (or `--data`) raised an exception. Typical causes: custom filters or functions that must be passed in `jinja_env`/the context, or a value used as a number that the inference could not see.
+
+**Bad**
+
+```jinja
+{{ money(total) }}      (money() comes from your Python code)
+```
+
+**Fix**
+
+```jinja
+pass `--data` with real values, or ignore DTL402 for templates that need Python objects
+```
+
+**docxtpl behaviour.** raises at render time.

@@ -28,8 +28,35 @@ except `template_error_tpl.docx`, which is broken on purpose. CI lints all of th
 |---|---|---|
 | 0.1.0 | 7 (`cellbg`/`colspan`/`vm`/`hm` tags, Word smart quotes) | yes (DTL102) |
 | 0.2.0 | **0** | yes (DTL102) |
+| 1.0.0 | **0** | yes (DTL102) |
 
-All 40 templates are linted in about 0.1 s.
+All 40 templates are linted in about 0.1 s. Since 1.0 the benchmark also runs `verify` (infer sample data, then render
+with the real docxtpl): 37 of 40 templates render with inferred data alone, with 0 false DTL401. The other three are the
+deliberately broken template and two that need Python objects (a custom Jinja filter, a function passed in the context).
+
+## What's new in 1.0: from linting to data contracts
+
+Five things no other docxtpl tool does (see [docs/PLAN-v1.0.md](docs/PLAN-v1.0.md) for the reasoning):
+
+| | command | what you get |
+|---|---|---|
+| 1 | `docxtpl-lint infer a.docx b.docx -o schema.json --sample sample.json` | the template's **data contract as JSON Schema** (lists from `for` loops, nested fields, numbers from `round`/arithmetic/comparisons, optional fields from `is defined`/`default`), merged across templates with `x-docxtpl-templates` per field, plus sample data that renders |
+| 2 | `docxtpl-lint verify a.docx` | **render-equivalence check**: renders with the real docxtpl and unique sentinel values, then reports every `{{ value }}` that silently vanished (DTL401) or a render that fails (DTL402). Needs `pip install "docxtpl-lint[render]"` |
+| 3 | `docxtpl-lint diff old.docx new.docx --fail-on-breaking` | **contract diff between template versions**: new required fields, list ↔ object changes, optional → required are breaking; removed fields are not; renames are hinted |
+| 4 | `docxtpl-lint a.docx --schema schema.json` | **schema conformance**: every variable must be declared in the contract (DTL304), loops must be over arrays (DTL305) |
+| 5 | `docxtpl-lint fix a.docx` | **fix suggestions as unified diffs**: `{% tr` → `{%tr`, mismatched prefixes, `endfro` → `endfor`, `iff` → `if`, `custmer` → `customer` (with `--data`). The `.docx` is never rewritten; every fix kind is tested by applying it and rendering with docxtpl |
+
+`verify` found a docxtpl behaviour that no rule covered: text next to a `{%p %}`, `{%tr %}` or `{%tc %}` tag is dropped from
+the output without an error. That is now the static rule **DTL209**. The playground shows the fix suggestions and the
+inferred schema/sample data too.
+
+```console
+$ docxtpl-lint verify invoice.docx
+invoice.docx:body ¶1:7: error DTL401 `{{ total }}` was rendered by docxtpl but its value does not appear in the output document
+    {{ total }}
+      > ¶1             | Total {{ total }} {%p if x %}
+        ¶2             | {%p endif %}
+```
 
 ## Features
 
@@ -43,12 +70,16 @@ All 40 templates are linted in about 0.1 s.
 - **Checks templates against sample data.** `--data sample.json` checks every variable path, including nested fields and
   loop items such as `items[*].price`. Paths guarded with `is defined` or `| default(...)` are not reported.
 - **Built for CI.** Exit codes, `--format json|github|sarif`, a GitHub Action and a pre-commit hook.
-- **Read-only.** Your `.docx` is never modified. The linter reads the OOXML with lxml and does not import docxtpl.
+- **Read-only.** Your `.docx` is never modified. The linter reads the OOXML with lxml and does not import docxtpl
+  (only `verify` does, through the optional `[render]` extra).
 
 ## Install
 
+Not on PyPI yet. Install from GitHub (a release tag or the wheel attached to a [release](https://github.com/yq6666-66/docxtpl-lint/releases)):
+
 ```sh
-pip install docxtpl-lint
+pip install "docxtpl-lint @ git+https://github.com/yq6666-66/docxtpl-lint@v1.0.0"
+pip install "docxtpl-lint[render] @ git+https://github.com/yq6666-66/docxtpl-lint@v1.0.0"   # + verify
 ```
 
 ## Usage
@@ -61,6 +92,11 @@ docxtpl-lint contract.docx --list-vars                   # which data does this 
 docxtpl-lint contract.docx --lang zh                     # 中文提示
 docxtpl-lint contract.docx --context 2                   # show 2 paragraphs around each issue
 docxtpl-lint --list-rules
+docxtpl-lint infer contract.docx -o schema.json --sample sample.json
+docxtpl-lint contract.docx --schema schema.json           # DTL304/305
+docxtpl-lint verify contract.docx                        # needs docxtpl-lint[render]
+docxtpl-lint diff v1/contract.docx v2/contract.docx --fail-on-breaking
+docxtpl-lint fix contract.docx [--data sample.json]      # prints diffs, never writes
 ```
 
 | exit code | meaning |
@@ -112,9 +148,14 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 | DTL206 | error | `{%tr for %}` and `{%tr endfor %}` in the same row | raises |
 | DTL207 | error | `{%tc for %}` and `{%tc endfor %}` in different rows | **silently** corrupts the table |
 | DTL208 | error | `{% cellbg %}` / `{% colspan %}` / `{% vm %}` / `{% hm %}` outside a table cell | raises "unknown tag" |
+| DTL209 | error | other text next to a `{%p %}` / `{%tr %}` / `{%tc %}` tag | **silently** drops that text |
 | DTL301 | error | (`--data`) variable missing from every sample context | renders empty or raises |
 | DTL302 | warning | (`--report-unused-data`) top-level data key never used | n/a |
 | DTL303 | error | (`--data`) `for` over a number / boolean / null | raises at render time |
+| DTL304 | error | (`--schema`) variable not declared in the JSON Schema | n/a (contract) |
+| DTL305 | error | (`--schema`) `for` over a value the schema declares as number / boolean / null | raises at render time |
+| DTL401 | error | (`verify`) a rendered `{{ value }}` is missing from the output | **silently** loses content |
+| DTL402 | error | (`verify`) docxtpl fails to render with the inferred / given data | raises |
 
 ### Upstream issues → rules
 
@@ -123,7 +164,7 @@ Each rule has examples and a fix in [docs/rules.md](docs/rules.md). JSON and SAR
 | [#378](https://github.com/elapouya/python-docx-template/issues/378): "help to locate the error in the template" | every rule's location; DTL101/102/103 |
 | [#603](https://github.com/elapouya/python-docx-template/issues/603): "Why can't it loop in the table?" | DTL202, DTL204, DTL205, DTL206, DTL207 |
 | [#644](https://github.com/elapouya/python-docx-template/issues/644): `{%p %}` fails with `%` or `}` | DTL201 |
-| [#538](https://github.com/elapouya/python-docx-template/issues/538) / [#391](https://github.com/elapouya/python-docx-template/issues/391): which (nested) variables does a template use? | `--list-vars`, DTL301 |
+| [#538](https://github.com/elapouya/python-docx-template/issues/538) / [#391](https://github.com/elapouya/python-docx-template/issues/391): which (nested) variables does a template use? | `--list-vars`, `infer` (JSON Schema), DTL301 |
 
 ## Use in CI
 

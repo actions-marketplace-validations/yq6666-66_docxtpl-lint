@@ -727,3 +727,125 @@ P2 待定
 ### v0.2 委托给 DeepSeek 的任务
 - docs/rules.md：DeepSeek 起草，我修了 `{open}` 占位符没替换的问题、DTL204/206/208/301/302 的示例，以及 DTL202 漏掉的 p/r 前缀
 - README.zh.md：DeepSeek 重新翻译，我核对了链接和代码块，原样采用
+
+
+## 第 7 轮：v1.0 创新点候选
+
+````
+You are a critical reviewer. Project: docxtpl-lint (static linter for docxtpl / python-docx-template Word templates; Python; lxml walker over body/header/footer/footnotes; rules DTL001-303; JSON/SARIF output; Pyodide playground; benchmark on docxtpl's 40 test templates with 0 false positives). Competitors: lintxtpl (splittist, writes annotated docx of jinja errors), generic jinja2 linters (djlint, j2lint) which don't understand docx XML run-splitting or docxtpl prefixes.
+Goal for v1.0: AT LEAST 5 genuinely novel features no competitor has, each must be implementable in ~1 day pure Python, testable against real docxtpl 0.20.2 behaviour, and useful. Candidates:
+1. render-equivalence verification: render template with generated sample data via real docxtpl and confirm every {{var}} actually appears in output (detect silently dropped content).
+2. schema inference: template -> JSON Schema + sample data (lists from for-loops, nested attrs, numbers from filters).
+3. auto-fix suggestions as unified diffs of tag text (e.g. smart quotes, missing endfor, wrong prefix).
+4. LSP / editor integration.
+5. template diff/regression between two versions (variables added/removed, loops changed -> data contract breaking change).
+6. docx visual annotation report (copy of docx with comments/highlights at issue locations).
+7. multi-template data contract check: one data JSON against many templates; or template against a JSON Schema.
+Critique hard: which are fake-novel, too costly, or unverifiable? Propose a final ranked list of >=5 with concrete scope, CLI flags, and how to test each against real docxtpl. Be concise, max 900 words.
+
+````
+
+### DeepSeek 回复（原文）
+
+# Critique
+
+**1. Render-equivalence — keep, but reframe.** "Every `{{var}}` appears in output" is naive: filters (`|upper`), conditionals, and `{% if %}` legitimately drop content. The *real* novel value is detecting **silently swallowed tags**: docxtpl's `render()` with `autoescape`/`jinja_env` quirks, or tags split across runs that docxtpl *does* rejoin but your linter flags. Verifiable: render with a sentinel-per-variable data dict (`{"v": "SENTINEL_v_42"}`), assert sentinel present. This is genuinely novel — no competitor renders. ~1 day: yes.
+
+**2. Schema inference — keep, highest value.** Nobody does this. `{% for x in items %}{{x.name}}{% endfor %}` → `items: array<{name}>`. Filters imply types (`|round` → number, `|length` → int). Nested `for` → nested arrays. Testable: infer schema from docxtpl's 40 templates, then render each with generated sample data and assert no `UndefinedError`. That round-trip *is* the test. ~1 day for v1 (attrs + loops + basic filters); edge cases (macros, includes) can be `additionalProperties: true`.
+
+**3. Auto-fix diffs — keep, but narrow.** Smart quotes → ASCII, `{{ var }` → `{{ var }}`, `{% endfor %}` missing. Unified diff of *tag text* is fine; don't try to rewrite XML runs. Testable: apply diff, re-lint, assert rule clears. ~1 day. Genuinely useful; lintxtpl only *annotates*, doesn't fix.
+
+**4. LSP — cut for v1.0.** Real LSP is weeks (async, capabilities negotiation, workspace sync). A "diagnostics-only stdio LSP" is ~2 days but low novelty — every linter has one. Defer to v1.1.
+
+**5. Template diff — keep, cheap and novel.** Compare two templates' *variable contracts*: added/removed vars, loop arity changes, filter changes. Output as JSON + human summary. "Breaking change" = removed var or narrowed loop. Testable: mutate a docxtpl template, assert diff catches it. ~0.5 day. No competitor does docx-aware diff.
+
+**6. Visual annotation docx — cut.** lintxtpl already does exactly this. Not novel. Also fiddly (comments API, run splitting) — >1 day.
+
+**7. Multi-template contract check — keep, merge with #2.** `--schema data.schema.json --templates *.docx` → which templates are satisfiable. This is the *product*: schema inference (#2) produces the schema, #7 consumes it. Testable against real docxtpl render. ~1 day combined.
+
+# Final ranked list
+
+**1. Schema inference + sample-data generation** (`docxtpl-lint infer`)
+- Scope: walk AST, collect vars/loops/filters, emit JSON Schema (draft 2020-12) + `sample.json`. Loops → arrays with inferred item shape; `|round|int|float` → number; `|length` → integer; `{% if %}` → optional.
+- CLI: `docxtpl-lint infer template.docx -o schema.json --sample sample.json`
+- Test: for each of docxtpl's 40 templates, `infer` → render with `sample.json` via real `docxtpl.DocxTemplate` → assert exit 0, no `UndefinedError`, no `jinja2.exceptions`. This *is* the benchmark.
+
+**2. Render-equivalence / swallowed-content check** (`docxtpl-lint verify`)
+- Scope: sentinel-injection render; flag tags whose sentinel is absent from output *and* not inside a false conditional (detect by rendering with condition forced true via schema-driven data).
+- CLI: `docxtpl-lint verify template.docx --data sample.json`
+- Test: hand-craft templates with run-split tags, `{% if false %}`, filters; assert correct classification. Cross-check against docxtpl 0.20.2 `render()`.
+
+**3. Data-contract diff** (`docxtpl-lint diff`)
+- Scope: two templates → JSON `{added:[], removed:[], changed:[{var, from, to}]}`; `--fail-on breaking` exit code.
+- CLI: `docxtpl-lint diff old.docx new.docx --format json`
+- Test: git-mutate a docxtpl template (rename var, change loop var), assert diff output. Golden-file tests.
+
+**4. Multi-template / schema conformance** (`docxtpl-lint check`)
+- Scope: `--schema` or `--data` against N templates; report per-template satisfiability, missing required vars, type mismatches.
+- CLI: `docxtpl-lint check templates/*.docx --schema schema.json`
+- Test: reuse #1's inferred schemas; assert self-consistency (infer→check passes). Negative: remove a key, assert failure.
+
+**5. Auto-fix unified diffs** (`docxtpl-lint fix --diff`)
+- Scope: DTL001 (smart quotes), DTL002 (unclosed tag), DTL003 (wrong prefix `{{` vs `{`), missing `{% endfor %}`. Emit `--- a/template.docx.xml +++ b/...` on tag text.
+- CLI: `docxtpl-lint fix template.docx --diff` (stdout) / `--write`.
+- Test: apply diff to extracted XML, re-lint, assert clean. Round-trip on docxtpl fixtures.
+
+**Cut:** LSP (#4, defer), visual annotation (#6, duplicate of lintxtpl).
+
+**Why this set wins:** #1+#4 form a closed loop (infer → check → render) that no competitor can replicate without a docx-aware AST walker. #2 exploits your unique position (you *can* call docxtpl). #3 and #5 are cheap, testable, and absent from lintxtpl/j2lint. All five are pure-Python, ~1 day each, and every one has a concrete test against docxtpl 0.20.2's real renderer — which is your moat.
+
+
+
+## 第 8 轮：我的反驳和设计
+
+````
+Round 8. My responses to your ranked list; reply AGREE/DISAGREE per point with one-line reason, then any blocking flaw. Max 400 words.
+A. Your rule IDs for fixes were wrong: DTL001 = tag never closed, DTL002 = tag spans paragraphs; smart quotes are already normalised (v0.2), not an issue. Fixes I will emit as unified diffs of paragraph text (never rewrite the docx; no --write, docx run-splitting makes that unsafe): DTL202 remove space `{% tr` -> `{%tr`; DTL204 make closing prefix equal opening; DTL203 drop tr/tc prefix outside table; DTL102 delete stray end tag; DTL103 "unknown tag 'endfro'" -> difflib closest Jinja keyword; DTL301 with --data: "did you mean" closest data path. Each validated by rebuilding the docx with the fixed text and rendering with real docxtpl (must render ok).
+B. verify: render with sentinel data (each leaf string path gets a unique ASCII token "DTLVnQ", loops get 1 item), read output docx, report DTL401 when an UNCONDITIONAL plain `{{ path }}` sentinel is missing (content silently lost, e.g. {%tr%} loop spanning two tables = DTL205 case), DTL402 when docxtpl raises with the inferred data. Expressions inside if/else are skipped to avoid false positives (no branch forcing in v1). Requires optional extra `docxtpl-lint[render]`; not in Pyodide.
+C. infer: JSON Schema 2020-12 + sample; numeric typing only from input filters round/int/float/abs and numeric comparisons; `|length` does NOT imply numeric input. Paths both printed and dereferenced become objects. Multi-template: `infer a.docx b.docx` merges into one contract with `x-docxtpl-templates` per property listing which templates use it. Benchmark: infer+render on docxtpl's 40 templates; templates needing InlineImage/Subdoc/custom filters will be counted and reported, not hidden.
+D. check --schema: lint using a schema as the contract: path not in schema -> DTL304, loop over non-array -> DTL303. (merging your #4 into existing --data machinery.)
+E. diff old.docx new.docx: added required path = breaking (producers must supply it), removed = non-breaking, type change = breaking; `--fail-on-breaking`.
+F. 6th: playground gets an "Infer data schema" button (infer runs in Pyodide, no docxtpl needed). LSP and annotated docx cut as you said.
+Version 1.0.0 with subcommands infer/verify/diff/fix plus default lint (backward compatible: `docxtpl-lint file.docx` unchanged).
+
+````
+
+### DeepSeek 回复（原文）
+
+**A. DISAGREE (partially).** Rule IDs are cosmetic; but "smart quotes already normalised" — if true, delete the rule, don't renumber. Unified diffs of paragraph text are the right call; run-splitting makes `--write` genuinely unsafe. DTL103 "closest Jinja keyword" is a weak heuristic — `endfro` → `endfor` is fine, but arbitrary typos will produce confident nonsense; gate on edit distance ≤2.
+
+**B. AGREE with caveat.** Sentinel rendering is the only honest way to detect silent loss. But "unconditional `{{ path }}`" is narrower than you think: `{{ x if y else z }}` is unconditional at top level yet you'll skip it. Document the false-negative surface explicitly or users will trust DTL401 as complete.
+
+**C. AGREE.** `|length` not implying numeric is correct. `x-docxtpl-templates` per-property is the right shape. Benchmark honesty (counting InlineImage/Subdoc/custom-filter templates as unsupported rather than hiding them) is exactly right.
+
+**D. AGREE.** Merging into `--data` machinery avoids a parallel code path. DTL303/304 IDs fine.
+
+**E. AGREE.** Directionality is correct. Add: renamed path (removed+added same type) should be a warning, not two breaking events — otherwise every refactor is "breaking."
+
+**F. AGREE.** Pyodide-only infer button is the right scope. LSP cut is correct — you don't have the bandwidth to do it well.
+
+**Blocking flaw:** B's DTL401 depends on `docxtpl-lint[render]` being installed, but A's fix validation *also* requires real docxtpl rendering. So `fix` silently degrades to "unvalidated diff" without the extra. Either make `[render]` a hard dependency of `fix` (fail loudly if absent) or rename the command to `fix --unvalidated` when the extra is missing. Shipping a fixer that emits diffs it cannot verify is worse than not shipping it — users will apply a diff that renders to a corrupt docx and blame you. Pick one: hard dep, or explicit degraded mode.
+
+
+
+## 第 9 轮：代码审查（提示词里附了三个源文件，这里省略）
+
+````
+Round 9: final review of the implemented v1.0 (code below). Find real bugs or false-positive risks only, max 400 words, each with file/function and a concrete failing template example. Do not restate features.
+Facts verified with docxtpl 0.20.2: verify on docxtpl's 40 test templates: 37 render with inferred data, 0 DTL401 false positives (one early FP on {% cellbg a.bg %} fixed by only checking expr tags). DTL209 cases (text next to {%p if%} and {%tr for%}) confirmed lost in real render. Each fix kind applied+rendered in tests.
+
+````
+
+### DeepSeek 回复（原文）
+
+**1. `verify.py::verify_path` — DTL401 false positive on repeated paths with different sentinels.** `tokens` is keyed by path, so the second occurrence overwrites the first, but `seen` also dedupes outputs by path. If the same path appears in two paragraphs and docxtpl renders only one (e.g. inside a `{%p if%}` block that is false), the surviving token is the *last* one assigned, yet the check looks for `tokens[p]` — which may be the token from the skipped occurrence. Concrete: template with `{{ x }}` in body and `{%p if flag %}{{ x }}{%p endif %}`; `sample` assigns `tokens["x"]` twice (last wins), render emits only the body occurrence, whose text is the *first* token → DTL401 fires on a correct template. Fix: key tokens by `(path, occurrence)` or emit a distinct sentinel per output site.
+
+**2. `contract.py::check_schema` — DTL304 false positive when a guarded ancestor is itself the path.** The skip is `any(path == g or path.startswith(g + ".") for g in an.guarded)`. If `g = "a.b"` and the schema legitimately lacks `a.b` because the template only ever uses it under `{% if a.b %}`, the guard suppresses the check — fine. But the reverse: `g = "a"` and path `a.b` is skipped even though `a` being guarded says nothing about `a.b`'s presence in the schema. Template: `{% if a %}{{ a.b }}{% endif %}` with schema `{properties:{a:{type:"object"}}}` (no `b`) → DTL304 silently missed. That's a false *negative*, not FP; the FP direction is: guarded path `a.b` used *outside* the guard in another paragraph — `an.guarded` is global, so the unguarded use is also skipped. Concrete: `{{ a.b }}` in body plus `{% if a.b %}...{% endif %}` elsewhere → missing `a.b` in schema never reported.
+
+**3. `fixes.py::suggest` DTL301 — `re.sub(rf"\b{re.escape(a)}\b", ...)` can rewrite the wrong segment.** `a` is a bare segment name; `\b` matches inside `[*]`-adjacent text and across `[]`. Template `{{ items[].nmae }}` with known `items[].name`: `a="nmae"`, `b="name"`, `cand` correct. But `{{ user.name }}` vs known `user.names` where `a="name"`, `b="names"`: `\bname\b` also matches the `name` inside `names` if the raw already contained `names` elsewhere — `count=1` picks the first, which may be the wrong occurrence. Low severity but real.
+
+**4. `contract.py::diff` — `parent_present` heuristic misclassifies nested additions.** For `p = "a.b.c"`, `p.rsplit(".",1)[0] = "a.b"`; if `a.b` is new too, `parent_present` is False → `req=False`, so a genuinely required new leaf is reported non-breaking. Template pair: old `{}`, new `{{ a.b.c }}` → `added` with `breaking=False`, but producers must supply it.
+
+
+### v1.0 委托给 DeepSeek 的任务
+- README.zh.md：DeepSeek 翻译，我核对了链接和代码块，并把"演练场"统一改为"在线试用页（Playground）"
